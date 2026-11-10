@@ -229,7 +229,7 @@ flowchart LR
 
 ## 개발·기여
 ```bash
-npm test    # 빌드 후 30개 테스트, 네트워크 없음
+npm test    # 빌드 후 31개 테스트, 네트워크 없음
 ```
 버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
 
