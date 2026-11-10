@@ -97,7 +97,7 @@ plan → apply → plan 을 연습용 목으로 차례로 보여 줍니다.
 | `--env-file <file>` | 키를 파일에서 읽기 | `--env-file .env` |
 | `--no-color` | 색 끄기(`NO_COLOR` 도 인식) | |
 
-종료 코드: 0 정상 · 2 변경 있음(`plan --detailed-exitcode` 일 때만) · 1 오류.
+종료 코드: 0 정상 · 2 변경 있음(`plan --detailed-exitcode` 일 때만) · 1 오류. 프롬프트 파일이 하나도 없는 폴더(빈 폴더·잘못된 `--dir`)도 오류(1)입니다.
 
 ### 프롬프트 파일 형식
 - 텍스트 프롬프트는 `.md`, 채팅 프롬프트는 `.yaml`/`.yml`. 이름은 `--dir` 기준 경로에서 확장자를 뺀 것(`support/greeting.md` → `support/greeting`)이고, 프론트매터의 `name` 으로 바꿀 수 있습니다.
@@ -224,11 +224,12 @@ flowchart LR
 | `type change text → chat is not allowed` | Langfuse 는 처음 정한 타입을 유지함 | 새 프롬프트 이름을 사용 |
 | `drift ...` 경고 | Langfuse 화면 등에서 promptplan 밖에서 만든 최신 버전이 있음 | Langfuse 에서 확인하거나 변경을 파일에 반영. 덮어쓰지 않음 |
 | 파일에서 라벨을 뺐는데 서버에는 남아 있음 | 라벨 PATCH 는 추가·이동만 하고 떼지 못함 | Langfuse 화면에서 직접 제거 |
+| `no prompt files (.md, .yaml, .yml) in ...` 또는 `prompt folder not found` | `--dir` 폴더가 비었거나 경로가 틀림(종료 코드 1) | `--dir` 경로를 확인하고 `.md`·`.yaml`·`.yml` 파일을 넣기 |
 | `apply --mock-state` 후 `mock-state.json` 이 바뀜 | `apply` 만 결과를 그 파일에 다시 씀(`plan` 은 읽기만 합니다) | 시드를 복사해서 쓰고 끝나면 삭제 |
 
 ## 개발·기여
 ```bash
-npm test    # 빌드 후 28개 테스트, 네트워크 없음
+npm test    # 빌드 후 29개 테스트, 네트워크 없음
 ```
 버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
 
