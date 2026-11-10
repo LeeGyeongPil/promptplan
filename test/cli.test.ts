@@ -70,6 +70,44 @@ test("exit codes: 0 by default, 2 with --detailed-exitcode, 1 on error", async (
   assert.equal((await cli(["plan", "--label", "latest", ...SEED_ARGS])).code, 1);
 });
 
+test("a folder with no prompt files is an error, not 'No changes'", async () => {
+  await withTempDir(async (root) => {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const empty = path.join(root, "empty");
+    const readmeOnly = path.join(root, "readme-only");
+    await mkdir(empty);
+    await mkdir(readmeOnly);
+    await writeFile(path.join(readmeOnly, "README.md"), "# notes\n");
+    const stateBefore = await readFile(SEED_FILE, "utf8");
+
+    for (const dir of [empty, readmeOnly]) {
+      for (const extra of [[], ["--detailed-exitcode"], ["--format", "json"], ["--format", "markdown"]]) {
+        const r = await cli(["plan", "--dir", dir, "--mock-state", "examples/remote-seed.json", "--no-color", ...extra]);
+        assert.equal(r.code, 1, `${extra.join(" ")}: ${r.stdout}${r.stderr}`);
+        assert.match(r.stdout, /no prompt files \(\.md, \.yaml, \.yml\) in /);
+        assert.doesNotMatch(r.stdout, /No changes/);
+      }
+      const text = await cli(["plan", "--dir", dir, "--mock-state", "examples/remote-seed.json", "--no-color"]);
+      assert.match(text.stdout, /Error: 1 problem found\. Nothing was sent to Langfuse\./);
+      assert.doesNotMatch(text.stdout, /Not in your files/);
+
+      const applied = await cli(["apply", "--yes", "--dir", dir, "--mock-state", "examples/remote-seed.json"]);
+      assert.equal(applied.code, 1, applied.stdout + applied.stderr);
+      assert.match(applied.stdout + applied.stderr, /no prompt files/);
+    }
+    assert.equal(await readFile(SEED_FILE, "utf8"), stateBefore);
+
+    // a missing folder keeps its own message
+    const missing = await cli(["plan", "--dir", path.join(root, "nope"), "--mock-state", "examples/remote-seed.json", "--no-color"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stdout, /prompt folder not found/);
+
+    // pull still works into an empty folder
+    const pulled = await cli(["pull", "--dir", empty, "--mock-state", "examples/remote-seed.json"]);
+    assert.equal(pulled.code, 0, pulled.stdout + pulled.stderr);
+  });
+});
+
 test("in-process: --version, --help, json format and interactive confirmation", async () => {
   const io = () => {
     const out = { stdout: "", stderr: "" };
