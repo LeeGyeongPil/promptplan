@@ -1,0 +1,5 @@
+# Wrong on purpose: support/greeting is a text prompt in Langfuse, this file makes it a chat prompt.
+labels: [staging]
+messages:
+  - role: system
+    content: Greet {{name}}.

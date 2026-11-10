@@ -1,0 +1,48 @@
+{
+  "name": "promptplan",
+  "version": "0.1.0",
+  "description": "Git-first prompt deployment for Langfuse: plan shows what would change, apply creates new versions only when content changed and moves labels otherwise.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "promptplan": "dist/src/cli.js"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test dist/test/*.test.js",
+    "demo": "tsc -p tsconfig.json && node dist/src/cli.js demo"
+  },
+  "keywords": [
+    "langfuse",
+    "prompt-management",
+    "llmops",
+    "prompts-as-code",
+    "cli",
+    "ci"
+  ],
+  "dependencies": {
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}

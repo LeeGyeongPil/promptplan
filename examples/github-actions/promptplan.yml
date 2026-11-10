@@ -1,0 +1,65 @@
+# Example workflow — copy to .github/workflows/promptplan.yml in your own repo.
+#   pull request → `promptplan plan` posted as a PR comment and to the job summary
+#   push to main → `promptplan apply --label staging` (only changed prompts get a new version)
+#   manual run   → promote: `promptplan apply --label production` (moves labels, no new versions)
+# Secrets: LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY (and LANGFUSE_BASE_URL for US or self-hosted).
+name: prompts
+on:
+  pull_request:
+    paths: ["prompts/**"]
+  push:
+    branches: [main]
+    paths: ["prompts/**"]
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Label to promote the current files to"
+        default: production
+
+env:
+  LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+  LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+  LANGFUSE_BASE_URL: ${{ secrets.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com' }}
+  # Where npx gets promptplan (pin a tag or commit, e.g. github:LeeGyeongPil/promptplan#v0.1.0)
+  PROMPTPLAN: github:LeeGyeongPil/promptplan
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24"
+      - name: promptplan plan
+        run: npx --yes "$PROMPTPLAN" plan --dir prompts --label staging --format markdown > plan.md
+      - name: Post the plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          cat plan.md >> "$GITHUB_STEP_SUMMARY"
+          # --edit-last updates the previous comment instead of adding a new one on every push
+          gh pr comment "$PR" --body-file plan.md --edit-last || gh pr comment "$PR" --body-file plan.md
+
+  apply:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency: promptplan-apply   # never run two applies at once
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24"
+      - name: promptplan apply
+        # GITHUB_SHA is recorded in each new version's commit message: "[promptplan] apply <sha7>"
+        # The label goes through an env variable, not straight into the script (avoids expression injection).
+        env:
+          LABEL: ${{ inputs.label || 'staging' }}
+        run: npx --yes "$PROMPTPLAN" apply --yes --dir prompts --label "$LABEL"

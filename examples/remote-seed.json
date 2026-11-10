@@ -1,0 +1,120 @@
+{
+  "prompts": [
+    {
+      "name": "experiments/tone-test",
+      "type": "text",
+      "tags": [],
+      "versions": [
+        {
+          "version": 1,
+          "prompt": "Rewrite this in a friendly tone: {{text}}",
+          "config": {},
+          "labels": [],
+          "commitMessage": "Created in the Langfuse UI"
+        }
+      ]
+    },
+    {
+      "name": "faq/short",
+      "type": "text",
+      "tags": [],
+      "versions": [
+        {
+          "version": 1,
+          "prompt": "Answer the question in one sentence: {{question}}",
+          "config": { "model": "gpt-4o-mini", "temperature": 0 },
+          "labels": ["production"],
+          "commitMessage": "[promptplan] apply 4f2a9c1"
+        }
+      ]
+    },
+    {
+      "name": "legal/disclaimer",
+      "type": "text",
+      "tags": ["legal"],
+      "versions": [
+        {
+          "version": 1,
+          "prompt": "This answer is general information.",
+          "config": {},
+          "labels": [],
+          "commitMessage": "[promptplan] apply 1b7e3d0"
+        },
+        {
+          "version": 2,
+          "prompt": "This answer is general information, not professional advice.",
+          "config": {},
+          "labels": [],
+          "commitMessage": "[promptplan] apply 8c5d2e4"
+        },
+        {
+          "version": 3,
+          "prompt": "This answer is general information, not professional advice.\nPlease check the official documentation before making decisions.",
+          "config": null,
+          "labels": ["production"],
+          "commitMessage": "[promptplan] apply 4f2a9c1"
+        },
+        {
+          "version": 4,
+          "prompt": "This answer is general information, not professional advice.\nPlease check the official documentation before making any decisions.",
+          "config": {},
+          "labels": [],
+          "commitMessage": "Edited in the Langfuse UI"
+        }
+      ]
+    },
+    {
+      "name": "qa/answer",
+      "type": "chat",
+      "tags": [],
+      "versions": [
+        {
+          "version": 1,
+          "prompt": [
+            { "role": "system", "content": "You answer questions about {{product}}.", "type": "chatmessage" },
+            { "role": "user", "content": "{{question}}", "type": "chatmessage" }
+          ],
+          "config": { "model": "gpt-4o-mini", "temperature": 0 },
+          "labels": ["production"],
+          "commitMessage": "[promptplan] apply 1b7e3d0"
+        },
+        {
+          "version": 2,
+          "prompt": [
+            {
+              "role": "system",
+              "content": "You answer questions about {{product}}. Keep answers short and cite the docs page.",
+              "type": "chatmessage"
+            },
+            { "type": "placeholder", "name": "history" },
+            { "role": "user", "content": "{{question}}", "type": "chatmessage" }
+          ],
+          "config": { "temperature": 0, "model": "gpt-4o-mini" },
+          "labels": ["staging"],
+          "commitMessage": "[promptplan] apply 9a0b6f3"
+        }
+      ]
+    },
+    {
+      "name": "support/greeting",
+      "type": "text",
+      "tags": ["support"],
+      "versions": [
+        {
+          "version": 1,
+          "prompt": "Hello {{name}}, how can I help with {{topic}}?",
+          "config": { "model": "gpt-4o-mini", "temperature": 0.2 },
+          "labels": ["production"],
+          "commitMessage": "[promptplan] apply 1b7e3d0"
+        },
+        {
+          "version": 2,
+          "prompt": "Hi {{name}}! What do you need help with regarding {{topic}}?",
+          "config": { "model": "gpt-4o-mini", "temperature": 0.2 },
+          "labels": ["staging"],
+          "commitMessage": "[promptplan] apply 9a0b6f3"
+        }
+      ]
+    }
+  ]
+}

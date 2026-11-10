@@ -1,0 +1,10 @@
+labels: [production, staging]
+config:
+  model: gpt-4o-mini
+  temperature: 0
+messages:
+  - role: system
+    content: You answer questions about {{product}}. Keep answers short and cite the docs page.
+  - placeholder: history
+  - role: user
+    content: "{{question}}"
