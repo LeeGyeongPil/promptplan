@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-11-11
+
+### Fixed
+
+- The plan summary line now pluralises new versions and label moves (`0 new versions, 0 label moves`, `1 new version, 1 label move`).
+
 ## 0.1.2 - 2026-11-11
 
 ### Fixed
