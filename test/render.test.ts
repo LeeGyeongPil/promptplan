@@ -5,7 +5,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { renderPlanJson } from "../src/render/json.js";
 import { MARKER, renderPlanMarkdown } from "../src/render/markdown.js";
-import { renderPlanText } from "../src/render/text.js";
+import { renderPlanText, summaryLine } from "../src/render/text.js";
+import type { Plan } from "../src/types.js";
 import { loadSeed, planDir, PROMPTS_DIR, ROOT, withMock } from "./helpers.js";
 
 const GOLDEN = path.join(ROOT, "test", "golden");
@@ -76,4 +77,13 @@ test("markdown keeps the table and code fences intact", async () => {
   assert.match(md, /\| `a\\\|b` \|/);
   assert.match(md, /````diff\n/);
   assert.match(md, /<summary><code>a\|b<\/code>/);
+});
+
+// plan 요약 줄은 개수에 맞게 단수·복수를 쓴다 (0 · 1 · 2+ 경계)
+test("summary line pluralises new versions and label moves", () => {
+  const line = (create: number, newVersion: number, move: number, unchanged: number): string =>
+    summaryLine({ summary: { create, newVersion, move, unchanged } } as Plan);
+  assert.equal(line(0, 0, 0, 5), "Plan: 0 to create, 0 new versions, 0 label moves, 5 unchanged");
+  assert.equal(line(1, 1, 1, 2), "Plan: 1 to create, 1 new version, 1 label move, 2 unchanged");
+  assert.equal(line(0, 2, 3, 2), "Plan: 0 to create, 2 new versions, 3 label moves, 2 unchanged");
 });

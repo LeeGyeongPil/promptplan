@@ -30,7 +30,7 @@ test("apply sends only needed requests and is idempotent", async () => {
 
     // 두 번째 plan: 할 일 없음
     const second = await planDir(PROMPTS_DIR, api);
-    assert.match(summaryLine(second), /^Plan: 0 to create, 0 new version, 0 label move, 5 unchanged$/);
+    assert.match(summaryLine(second), /^Plan: 0 to create, 0 new versions, 0 label moves, 5 unchanged$/);
     assert.equal(hasChanges(second), false);
 
     // 두 번째 apply: 원격을 바꾸는 요청 0건

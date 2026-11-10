@@ -20,7 +20,7 @@ const COLOR: Record<PromptChange["action"], string> = { create: "32", "new-versi
 
 export function summaryLine(plan: Plan): string {
   const s = plan.summary;
-  return `Plan: ${s.create} to create, ${s.newVersion} new version, ${s.move} label move, ${s.unchanged} unchanged`;
+  return `Plan: ${s.create} to create, ${plural(s.newVersion, "new version")}, ${plural(s.move, "label move")}, ${s.unchanged} unchanged`;
 }
 
 export function labelsText(labels: string[]): string {
