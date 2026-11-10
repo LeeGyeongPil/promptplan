@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { copyFile, readFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
@@ -182,5 +182,47 @@ test("--env-file supplies keys and the process environment wins", async () => {
       assert.equal(connection.target, "Langfuse at us.cloud.langfuse.com");
     }
     assert.equal(resolveConnection({ env: { LANGFUSE_PUBLIC_KEY: "a", LANGFUSE_SECRET_KEY: "b" } }).target, "Langfuse at cloud.langfuse.com");
+  });
+});
+
+test("missing --dir and --mock-state errors show the path that was passed", async () => {
+  await withTempDir(async (root) => {
+    // 없는 경로는 임시 폴더 안의 존재하지 않는 하위 경로로 만든다(결정적).
+    const missingDir = path.join(root, "nope");
+    const missingState = path.join(root, "gone", "state.json");
+
+    const noDir = await cli(["plan", "--dir", missingDir, "--mock-state", "examples/remote-seed.json", "--no-color"]);
+    assert.equal(noDir.code, 1);
+    assert.ok(noDir.stdout.includes(`${missingDir}: prompt folder not found`), noDir.stdout);
+    assert.ok(!noDir.stdout.includes("x .:"), noDir.stdout);
+
+    const noState = await cli(["plan", "--dir", "examples/prompts", "--mock-state", missingState, "--no-color"]);
+    assert.equal(noState.code, 1);
+    const out = noState.stdout + noState.stderr;
+    assert.ok(out.includes(missingState), out);
+    assert.ok(out.includes("ENOENT"), out);
+
+    // 다른 오류 경로는 그대로: 잘못된 JSON, 모양이 틀린 상태, 빈 폴더
+    const badJson = path.join(root, "bad.json");
+    await writeFile(badJson, "{bad", "utf8");
+    const bad = await cli(["plan", "--dir", "examples/prompts", "--mock-state", badJson, "--no-color"]);
+    assert.equal(bad.code, 1);
+    assert.match(bad.stdout + bad.stderr, /mock state file is not valid JSON/);
+
+    const badShape = path.join(root, "shape.json");
+    await writeFile(badShape, "{}", "utf8");
+    const shape = await cli(["plan", "--dir", "examples/prompts", "--mock-state", badShape, "--no-color"]);
+    assert.equal(shape.code, 1);
+    assert.match(shape.stdout + shape.stderr, /mock state file needs \{ "prompts": \[\.\.\.\] \}/);
+
+    const empty = path.join(root, "empty");
+    await mkdir(empty);
+    const none = await cli(["plan", "--dir", empty, "--mock-state", "examples/remote-seed.json", "--no-color"]);
+    assert.equal(none.code, 1);
+    assert.ok(none.stdout.includes(`no prompt files (.md, .yaml, .yml) in ${empty}`), none.stdout);
+
+    // 정상 경로는 종료 0
+    const ok = await cli(["plan", ...SEED_ARGS, "--no-color"]);
+    assert.equal(ok.code, 0, ok.stdout + ok.stderr);
   });
 });
