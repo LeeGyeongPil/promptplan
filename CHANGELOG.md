@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.2 - 2026-11-11
+
+### Fixed
+
+- The "prompt folder not found" error now shows the `--dir` path you passed (`x nope: prompt folder not found`) instead of `.`; the library's `loadPromptDir` reports that path as the error `name` and `file`.
+- The mock state read error now includes the file path: `cannot read mock state file nope.json (ENOENT)`.
+- Other read errors (such as ENOTDIR) now also show the path they failed on.
+
+### Known limitations in 0.1.2
+
+- The empty prompt folder error still starts with `x .:` instead of the `--dir` path.
+- The regression assertions for the path fixes live in a single test, so a failure there is less specific.
+- With `--format json`, remote prompts are still listed under `unmanaged` even when the run has errors.
+
 ## 0.1.1 - 2026-11-11
 
 ### Fixed
@@ -8,7 +22,6 @@
 
 ### Known limitations in 0.1.1
 
-- The "prompt folder not found" error does not show the path you passed and reports its location as `.`.
 - With `--format json`, remote prompts are still listed under `unmanaged` even when the run has errors.
 
 ## 0.1.0 - 2026-11-10
