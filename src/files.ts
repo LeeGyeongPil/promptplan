@@ -44,7 +44,7 @@ export async function loadPromptDir(dir: string): Promise<LoadResult> {
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     const message = code === "ENOENT" ? "prompt folder not found" : `cannot read prompt folder (${code ?? String(error)})`;
-    return { specs: [], errors: [{ name: ".", file: ".", message }] };
+    return { specs: [], errors: [{ name: dir, file: dir, message }] };
   }
   // 폴더는 읽혔지만 프롬프트 파일이 하나도 없으면 오류: --dir 오지정이 CI 에서 조용히 통과하지 않게.
   if (files.length === 0)

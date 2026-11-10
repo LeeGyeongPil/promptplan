@@ -378,7 +378,7 @@ export async function readMockState(file: string): Promise<MockState> {
   try {
     text = await readFile(file, "utf8");
   } catch (error) {
-    throw new Error(`cannot read mock state file (${(error as NodeJS.ErrnoException).code ?? String(error)})`);
+    throw new Error(`cannot read mock state file ${file} (${(error as NodeJS.ErrnoException).code ?? String(error)})`);
   }
   let value: unknown;
   try {
