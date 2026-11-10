@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1 - 2026-11-11
+
+### Fixed
+
+- `plan` and `apply` now fail (exit code 1) when `--dir` exists but holds no prompt files (`.md`, `.yaml`, `.yml`; hidden files, `node_modules` and `README.md` do not count), instead of reporting "No changes" and exiting 0. This was a known limitation in 0.1.0. If you relied on an empty folder to list every remote prompt as "Not in your files", that run now exits 1.
+
+### Known limitations in 0.1.1
+
+- The "prompt folder not found" error does not show the path you passed and reports its location as `.`.
+- With `--format json`, remote prompts are still listed under `unmanaged` even when the run has errors.
+
 ## 0.1.0 - 2026-11-10
 
 First release.
@@ -14,5 +25,4 @@ First release.
 ### Known limitations in 0.1.0
 
 - Error messages for a missing `--dir` folder or `--mock-state` file do not include the path you passed.
-- An empty prompt folder gives no warning; every remote prompt then shows as "Not in your files".
 - The `plan` summary line does not pluralise ("2 label move", "0 new version").
