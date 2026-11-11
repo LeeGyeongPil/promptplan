@@ -1,41 +1,39 @@
 # promptplan
 
-**한국어** | [English](README.en.md)
+**English** | [한국어](README.ko.md)
 
-> **English summary** — Git-first prompt deployment for Langfuse: `plan` shows what would change, `apply` creates a new version only when the content changed and moves labels otherwise. For teams that keep prompts in Git, review them in pull requests and deploy from CI. Try it without an account: `git clone https://github.com/LeeGyeongPil/promptplan && cd promptplan && npm install && npm run demo` (practice mock mode).
+Git-first prompt deployment for Langfuse: `plan` shows what would change, `apply` creates a new version only when the content changed and moves labels otherwise. This avoids a hand-written deploy script piling up versions with identical content. For teams that keep prompts in Git, review them in pull requests and deploy from CI. Try it without an account: `git clone https://github.com/LeeGyeongPil/promptplan && cd promptplan && npm install && npm run demo` (practice mock mode).
 
-프롬프트 파일 폴더와 Langfuse 를 비교해서 "무엇이 바뀌는지"를 미리 보여 주고(`plan`), 바뀐 것만 새 버전으로 올리거나 라벨만 옮기는(`apply`) CLI 입니다. 손으로 짠 deploy 스크립트가 같은 내용으로 버전을 계속 쌓는 문제를 없애 줍니다.
+![plan result screen](docs/images/01-hero.png)
+*`promptplan plan` showing the differences between the folder and the (practice mock) server with the symbols `+ ~ > =` and warnings*
 
-![plan 결과 화면](docs/images/01-hero.png)
-*`promptplan plan` 이 폴더와 (연습용 목) 서버의 차이를 `+ ~ > =` 기호와 경고로 보여 주는 화면*
+## Who it's for
+- When you run prompt versions and labels in Langfuse, keep the originals in Git, and want to deploy only what passed PR review
+- When you don't want a new version with identical content piling up every time CI runs
+- When you want to avoid overwriting, without knowing it, a version someone edited directly in the Langfuse UI (drift)
+- When you want to catch, at review time, a change that deletes a `{{variable}}` from a prompt and breaks app code
 
-## 이런 분께
-- Langfuse 로 프롬프트 버전·라벨을 운영하면서, 원본은 Git 에 두고 PR 리뷰를 거친 것만 배포하고 싶을 때
-- CI 가 돌 때마다 같은 내용의 새 버전이 쌓이는 것이 싫을 때
-- 누가 Langfuse 화면에서 직접 고친 버전(드리프트)을 모르고 덮어쓰는 일을 피하고 싶을 때
-- 프롬프트에서 `{{변수}}` 를 지워 앱 코드가 깨지는 변경을 리뷰 단계에서 보고 싶을 때
+By analogy, it's "terraform for prompts." The folder = the desired state, Langfuse = the current state, `plan` = the difference, `apply` = making them match.
 
-비유하면 "프롬프트용 terraform" 입니다. 폴더 = 원하는 모습, Langfuse = 지금 모습, `plan` = 차이, `apply` = 맞추기.
+## Install
+Prerequisite: Node.js 22 or later (check with `node --version`). For installation help, see https://nodejs.org. A minimal Linux environment needs `git` plus Node.js and npm.
 
-## 설치
-전제: Node.js 22 이상(`node --version` 으로 확인). 설치 안내는 https://nodejs.org 를 참고하세요. 최소 리눅스 환경에는 `git` 과 Node.js·npm 이 필요합니다.
-
-npm 레지스트리에는 아직 게시하지 않았습니다. 지금은 저장소를 받아 로컬에서 빌드합니다.
+It is not published to the npm registry yet. For now, get the repository and build it locally.
 
 ```bash
 git clone https://github.com/LeeGyeongPil/promptplan
 cd promptplan
-npm install        # prepare 단계가 TypeScript 를 dist/ 로 빌드합니다
-npm run demo       # 연습용 목 모드 — 계정·키 불필요
+npm install        # The prepare step builds TypeScript into dist/
+npm run demo       # Practice mock mode — no account or key needed
 ```
 
-내 프로젝트의 CI 에서 쓸 때는 GitHub 에서 바로 받는 방법도 있습니다(저장소가 공개된 뒤).
+To use it in your own project's CI, you can also fetch it straight from GitHub (once the repository is public).
 ```bash
 npx --yes github:LeeGyeongPil/promptplan plan --dir prompts
 ```
 
-## 빠르게 시작하기
-저장소 안에서 예제 폴더와 연습용 서버 상태를 비교해 봅니다.
+## Quick start
+Inside the repository, compare the example folder with a practice server state.
 
 ```bash
 npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.json
@@ -58,53 +56,53 @@ Not in your files (left alone): experiments/tone-test
 
 Plan: 1 to create, 1 new version, 1 label move, 2 unchanged
 ```
-(diff 줄은 `...` 로 줄였습니다. 전체 출력은 위 스크린샷과 `npm run demo` 에서 볼 수 있습니다.)
+(The diff lines are shortened to `...`. You can see the full output in the screenshot above and in `npm run demo`.)
 
-읽는 법:
+How to read it:
 
-| 기호 | 뜻 |
+| Symbol | Meaning |
 |---|---|
-| `+` | 새 프롬프트 만들기(create) |
-| `~` | 내용이 바뀌어 새 버전 만들기 |
-| `>` | 새 버전 없이 라벨(예: production)만 다른 버전으로 옮기기 |
-| `=` | 이미 같음 |
-| `!` | 경고: 드리프트, 변수·플레이스홀더 추가·삭제, 태그 |
-| `x` | 오류: 이 상태면 Langfuse 에 아무것도 보내지 않음 |
+| `+` | Create a new prompt (create) |
+| `~` | The content changed, so create a new version |
+| `>` | Move only a label (for example, production) to a different version, with no new version |
+| `=` | Already the same |
+| `!` | Warning: drift, added or removed variables or placeholders, tags |
+| `x` | Error: in this state, nothing is sent to Langfuse |
 
-"라벨"은 버전에 붙이는 이름표입니다. 앱은 `production` 라벨이 붙은 버전을 읽으므로, 승격은 새 버전이 아니라 이름표(화살표) 이동입니다.
+A "label" is a name tag attached to a version. The app reads the version carrying the `production` label, so promotion is not a new version but moving the tag (an arrow).
 
-### 30초 전체 흐름 (`npm run demo`)
-plan → apply → plan 을 연습용 목으로 차례로 보여 줍니다.
+### The full flow in 30 seconds (`npm run demo`)
+It shows plan → apply → plan in sequence against the practice mock.
 
-![demo 전체 흐름](docs/images/02-demo.png)
-*apply 는 필요한 요청만(2 POST, 1 PATCH) 보내고, 다시 plan 하면 변경 없음. 맨 아래는 비교 없는 스크립트와의 버전 수 비교*
+![demo full flow](docs/images/02-demo.png)
+*apply sends only the requests it needs (2 POST, 1 PATCH), and planning again shows no changes. The bottom compares version counts with a script that does no comparison*
 
-**연습용 목(mock) 모드**: 데모는 Langfuse 프롬프트 API 를 흉내 낸 메모리 속 가짜 서버로 동작합니다. 실제 서버와 응답이 완전히 같다고 보장하지 않습니다(소스 읽기 기반으로 재현, 2026-11-10). 실제 Langfuse 는 공유 자원이라 느릴 수 있어 요청마다 120초 타임아웃을 둡니다.
+**Practice mock mode**: The demo runs against an in-memory fake server that imitates the Langfuse prompt API. It does not guarantee responses identical to the real server (reproduced from reading the source, 2026-11-10). The real Langfuse is a shared resource and can be slow, so every request has a 120-second timeout.
 
-## 사용법
+## Usage
 
-| 명령·옵션 | 하는 일 | 예 |
+| Command / option | What it does | Example |
 |---|---|---|
-| `plan` | 폴더와 Langfuse 를 비교만 함(아무것도 바꾸지 않음) | `promptplan plan --dir prompts` |
-| `plan --format markdown` | PR 코멘트용 표로 출력 (`text`·`markdown`·`json`) | `promptplan plan --format markdown > plan.md` |
-| `plan --detailed-exitcode` | 변경이 있으면 종료 코드 2, 없으면 0 (오류는 1) | `promptplan plan --detailed-exitcode` |
-| `apply` | 바뀐 것만 새 버전으로 올리고, 같은 내용이면 라벨만 옮김 | `promptplan apply --yes --dir prompts` |
-| `--label <l>` (반복 가능) | 파일의 라벨 대신 이 라벨을 모든 프롬프트에 적용 = 승격 | `promptplan apply --yes --label production` |
-| `--message`, `-m` | 새 버전의 커밋 메시지(`[promptplan] <m>` 로 저장) | `-m "fix tone"` |
-| `--yes`, `-y` | 확인 없이 적용. 터미널이 아닌 곳(CI)에서는 필수 | |
-| `pull` | 라벨(기본 `production`)이 붙은 프롬프트를 파일로 저장. `--force` 로 덮어쓰기 | `promptplan pull --dir prompts` |
-| `mock` | 연습용 목 서버를 Ctrl+C 까지 띄움 | `promptplan mock --port 3999 --seed examples/remote-seed.json` |
-| `demo` | plan → apply → plan 데모 | `promptplan demo` |
-| `--mock-state <file>` | Langfuse 대신 이 JSON 으로 시작하는 연습용 목 사용(apply 는 결과를 파일에 다시 씀) | `--mock-state examples/remote-seed.json` |
-| `--env-file <file>` | 키를 파일에서 읽기 | `--env-file .env` |
-| `--no-color` | 색 끄기(`NO_COLOR` 도 인식) | |
+| `plan` | Only compares the folder with Langfuse (changes nothing) | `promptplan plan --dir prompts` |
+| `plan --format markdown` | Output as a table for PR comments (`text`, `markdown`, `json`) | `promptplan plan --format markdown > plan.md` |
+| `plan --detailed-exitcode` | Exit code 2 if there are changes, 0 if none (1 for errors) | `promptplan plan --detailed-exitcode` |
+| `apply` | Uploads only what changed as a new version, and only moves labels if the content is the same | `promptplan apply --yes --dir prompts` |
+| `--label <l>` (repeatable) | Applies this label to all prompts instead of the file's labels = promotion | `promptplan apply --yes --label production` |
+| `--message`, `-m` | Commit message of the new version (stored as `[promptplan] <m>`) | `-m "fix tone"` |
+| `--yes`, `-y` | Apply without confirmation. Required where there is no terminal (CI) | |
+| `pull` | Saves prompts carrying a label (default `production`) to files. Overwrite with `--force` | `promptplan pull --dir prompts` |
+| `mock` | Runs a practice mock server until Ctrl+C | `promptplan mock --port 3999 --seed examples/remote-seed.json` |
+| `demo` | The plan → apply → plan demo | `promptplan demo` |
+| `--mock-state <file>` | Use a practice mock that starts from this JSON instead of Langfuse (apply writes the result back to the file) | `--mock-state examples/remote-seed.json` |
+| `--env-file <file>` | Read keys from a file | `--env-file .env` |
+| `--no-color` | Turn off color (`NO_COLOR` is also recognized) | |
 
-종료 코드: 0 정상 · 2 변경 있음(`plan --detailed-exitcode` 일 때만) · 1 오류. 프롬프트 파일이 하나도 없는 폴더(빈 폴더·잘못된 `--dir`)도 오류(1)입니다.
+Exit codes: 0 normal · 2 changes exist (only with `plan --detailed-exitcode`) · 1 error. A folder with no prompt files at all (an empty folder, or a wrong `--dir`) is also an error (1).
 
-### 프롬프트 파일 형식
-- 텍스트 프롬프트는 `.md`, 채팅 프롬프트는 `.yaml`/`.yml`. 이름은 `--dir` 기준 경로에서 확장자를 뺀 것(`support/greeting.md` → `support/greeting`)이고, 프론트매터의 `name` 으로 바꿀 수 있습니다.
-- 프론트매터 키: `name`, `type`, `labels`, `config`, `tags`, `commitMessage`(채팅은 `messages` 추가). 모르는 키는 오류입니다.
-- 채팅 메시지는 `{role, content}` 또는 `{placeholder: <이름>}`.
+### Prompt file format
+- Text prompts are `.md`, chat prompts are `.yaml`/`.yml`. The name is the path relative to `--dir` without the extension (`support/greeting.md` → `support/greeting`), and you can override it with `name` in the front matter.
+- Front matter keys: `name`, `type`, `labels`, `config`, `tags`, `commitMessage` (chat adds `messages`). An unknown key is an error.
+- Chat messages are `{role, content}` or `{placeholder: <name>}`.
 
 ```markdown
 ---
@@ -125,13 +123,13 @@ messages:
     content: "{{question}}"
 ```
 
-### 시나리오 1: PR 에서 변경 미리 보기
+### Scenario 1: Preview changes in a PR
 ```bash
 npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.json --format markdown > plan.md
 ```
-표와 접이식 diff 가 든 Markdown 이 나옵니다. 예제 워크플로가 이것을 PR 코멘트로 올립니다.
+You get Markdown containing a table and collapsible diffs. The example workflow posts this as a PR comment.
 
-변경이 있는지 스크립트로 분기하려면:
+To branch in a script on whether there are changes:
 
 ```bash
 npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.json --detailed-exitcode > /dev/null; echo "exit=$?"
@@ -139,101 +137,101 @@ npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.jso
 ```
 exit=2
 ```
-![종료 코드 2](docs/images/03-exitcode.png)
-*변경이 있어 종료 코드 2*
+![exit code 2](docs/images/03-exitcode.png)
+*Exit code 2 because there are changes*
 
-### 시나리오 2: 잘못된 파일은 보내기 전에 막기
+### Scenario 2: Block bad files before sending
 ```bash
 npx promptplan plan --dir examples/broken --mock-state examples/remote-seed.json
 ```
-![검증 오류 화면](docs/images/04-broken.png)
-*예약된 라벨 `latest`, 잘못된 라벨, 예약된 이름, 타입 변경(text→chat)을 보내기 전에 오류 4건으로 막음. 종료 코드 1이며 서버에는 아무것도 가지 않음*
+![validation error screen](docs/images/04-broken.png)
+*A reserved label `latest`, an invalid label, a reserved name, and a type change (text→chat) are blocked with 4 errors before sending. Exit code 1, and nothing goes to the server*
 
-### 시나리오 3: staging 에 올리고 production 으로 승격
+### Scenario 3: Upload to staging and promote to production
 ```bash
 cp examples/remote-seed.json mock-state.json
 npx promptplan apply --yes --label staging    --dir examples/prompts --mock-state mock-state.json
 npx promptplan apply --yes --label production --dir examples/prompts --mock-state mock-state.json
 rm mock-state.json
 ```
-첫 apply 는 내용이 바뀐 것만 새 버전으로 올립니다. 두 번째(승격)는 `Applied: 0 created versions, 3 label moves` — 새 버전 없이 production 라벨만 옮깁니다.
+The first apply uploads only the changed content as new versions. The second (promotion) gives `Applied: 0 created versions, 3 label moves` — it moves only the production label, with no new versions.
 
-![승격 결과](docs/images/05-promote.png)
-*승격 단계의 결과: 라벨 이동 3건, 새 버전 0건*
+![promotion result](docs/images/05-promote.png)
+*Result of the promotion step: 3 label moves, 0 new versions*
 
-`pull` 로 서버의 production 프롬프트를 파일로 내려받으면 곧바로 `plan` 이 "No changes" 가 됩니다(왕복 확인).
+If you download the server's production prompts into files with `pull`, `plan` immediately says "No changes" (a round-trip check).
 
-## 설정
-실제 Langfuse 에 연결하려면 `.env.example` 을 `.env` 로 복사해 채웁니다(`.env` 는 커밋하지 마세요).
+## Settings
+To connect to a real Langfuse, copy `.env.example` to `.env` and fill it in (do not commit `.env`).
 
 ```bash
 cp .env.example .env
 npx promptplan plan --dir prompts --env-file .env
 ```
 
-| 변수 | 뜻 |
+| Variable | Meaning |
 |---|---|
-| `LANGFUSE_PUBLIC_KEY` | Langfuse 프로젝트 설정의 API 키(공개) |
-| `LANGFUSE_SECRET_KEY` | API 키(비밀) |
-| `LANGFUSE_BASE_URL` | 기본 `https://cloud.langfuse.com`(EU). US 는 `https://us.cloud.langfuse.com`, 셀프호스트는 내 주소 |
+| `LANGFUSE_PUBLIC_KEY` | The (public) API key from the Langfuse project settings |
+| `LANGFUSE_SECRET_KEY` | The (secret) API key |
+| `LANGFUSE_BASE_URL` | Default `https://cloud.langfuse.com` (EU). For US, `https://us.cloud.langfuse.com`; for self-hosting, your own address |
 
-이미 설정된 환경 변수가 `--env-file` 값보다 우선합니다. 키도 `--mock-state` 도 없으면 어떻게 하라는 안내와 함께 종료 코드 1 로 끝납니다.
+Environment variables that are already set take precedence over `--env-file` values. If there are neither keys nor `--mock-state`, it ends with exit code 1 and a message on what to do.
 
-**목 모드와 실제 모드의 차이**: 목은 같은 규칙(POST 는 언제나 새 버전, `latest` 자동 이동, 라벨은 한 버전에만 등)을 흉내 내는 로컬 서버라 키가 필요 없고 빠릅니다. 실제 서버와의 차이는 사용자 환경에서 `plan --env-file .env` 로 확인하세요.
+**Differences between mock mode and real mode**: The mock is a local server that imitates the same rules (a POST always creates a new version, `latest` moves automatically, a label sits on only one version), so it needs no key and is fast. To see differences from the real server, run `plan --env-file .env` in your own environment.
 
-### CI 에 붙이기
-`examples/github-actions/promptplan.yml` 을 내 저장소의 `.github/workflows/` 로 복사합니다.
+### Hooking it into CI
+Copy `examples/github-actions/promptplan.yml` into your repository's `.github/workflows/`.
 
-- PR: `plan --label staging --format markdown` 결과를 PR 코멘트와 잡 요약에 올림
-- main 병합: `apply --yes --label staging` (바뀐 것만 새 버전)
-- 수동 실행: `apply --yes --label production` (라벨 이동만)
+- PR: posts the result of `plan --label staging --format markdown` to a PR comment and the job summary
+- Merge to main: `apply --yes --label staging` (only changed content becomes a new version)
+- Manual run: `apply --yes --label production` (label moves only)
 
-시크릿은 `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`(US·셀프호스트면 `LANGFUSE_BASE_URL` 도). 새 버전의 커밋 메시지에는 `[promptplan] apply <커밋 7자리>` 가 기록됩니다.
+The secrets are `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` (plus `LANGFUSE_BASE_URL` for US or self-hosting). The new version's commit message records `[promptplan] apply <7-character commit>`.
 
-## 동작 원리
+## How it works
 
 ```mermaid
 flowchart LR
-  F["prompts/ 파일"] --> L["읽기·검증"]
-  L --> P["plan: 원격과 비교"]
-  R["Langfuse 현재 상태"] --> P
-  P --> D{"변경?"}
-  D -- "내용 다름" --> N["apply: 새 버전 POST"]
-  D -- "내용 같고 라벨만 다름" --> M["apply: 라벨 PATCH"]
-  D -- "같음" --> S["아무것도 안 함"]
+  F["prompts/ files"] --> L["Read and validate"]
+  L --> P["plan: compare with remote"]
+  R["Langfuse current state"] --> P
+  P --> D{"Changed?"}
+  D -- "Content differs" --> N["apply: POST new version"]
+  D -- "Same content, only label differs" --> M["apply: PATCH label"]
+  D -- "Same" --> S["Do nothing"]
 ```
 
-- 파일을 읽고 검증합니다. 문제가 있으면 여기서 멈추고 서버에는 아무것도 보내지 않습니다.
-- 프롬프트마다 원격의 최신 버전과 지금 그 라벨이 붙은 버전들을 가져와 내용을 비교합니다.
-- 같은 내용의 버전이 이미 있으면 새 버전을 만들지 않고 라벨만 옮깁니다. Langfuse 는 내용이 같아도 POST 마다 새 버전을 만들기 때문에, 먼저 비교하는 것이 핵심입니다.
-- 라벨 이동은 PATCH 라서 라벨을 더하기만 하고 떼지는 못합니다.
-- 최신 버전이 내 파일에 없고 `[promptplan]` 표식 없이 만들어졌다면 드리프트로 경고만 하고 덮어쓰지 않습니다.
-- 쓰기 요청은 한 번에 하나씩 보내고 첫 오류에서 멈춥니다. 다시 apply 하면 끝난 것은 `=` 로 보입니다(멱등). 새 버전을 만드는 POST 는 응답이 실패해도 자동 재시도하지 않습니다(서버가 이미 만들었을 수 있어 같은 버전이 또 생기므로).
+- It reads and validates the files. If there is a problem, it stops here and sends nothing to the server.
+- For each prompt, it fetches the remote's latest version and the versions currently carrying that label, and compares the content.
+- If a version with the same content already exists, it does not create a new version and only moves the label. Langfuse creates a new version on every POST even when the content is the same, so comparing first is the key.
+- A label move is a PATCH, so it can only add labels and cannot remove them.
+- If the latest version is not in your files and was created without the `[promptplan]` marker, it is only warned about as drift and not overwritten.
+- Write requests are sent one at a time and stop at the first error. If you apply again, what finished shows as `=` (idempotent). A POST that creates a new version is not retried automatically even if the response fails (the server may already have created it, so the same version would be created again).
 
-참고: Langfuse 공식 문서 https://langfuse.com/docs/prompt-management (2026-11-10 확인).
+Reference: the official Langfuse docs https://langfuse.com/docs/prompt-management (checked 2026-11-10).
 
-## 언제 쓰나
-- 이럴 때: 프롬프트 원본을 Git 에 두고 PR 로 리뷰한 뒤 CI 로 Langfuse 에 반영하고, 새 버전은 내용이 바뀐 때만 만들고 싶을 때.
-- 범위: 프롬프트의 파일↔Langfuse 동기화에 한정합니다. 평가·트레이싱은 다루지 않습니다.
-- 이럴 땐 다른 도구: Langfuse 에서 Git 으로 내보내는 방향의 미러 → Langfuse 공식 [GitHub 연동](https://langfuse.com/docs/prompt-management/features/github-integration), API 를 1:1 로 직접 호출하는 일반 용도 → 공식 [Langfuse CLI](https://langfuse.com/changelog/2026-02-17-langfuse-cli) (2026-11-10 확인, 기능은 링크의 공식 문서 기준으로 확인하세요).
+## When to use it
+- Use it when: you keep prompt originals in Git, review them in PRs, reflect them in Langfuse via CI, and want a new version created only when the content changes.
+- Scope: limited to file↔Langfuse synchronization of prompts. It does not cover evaluation or tracing.
+- Use another tool when: you want a mirror going from Langfuse out to Git → Langfuse's official [GitHub integration](https://langfuse.com/docs/prompt-management/features/github-integration); a general-purpose 1:1 direct call of the API → the official [Langfuse CLI](https://langfuse.com/changelog/2026-02-17-langfuse-cli) (checked 2026-11-10; check the features against the official docs at the link).
 
-## 자주 겪는 문제
-| 증상 | 원인 | 해결 |
+## Troubleshooting
+| Symptom | Cause | Fix |
 |---|---|---|
-| `No Langfuse keys found` | 키도 `--mock-state` 도 없음 | `--env-file .env` 로 키를 주거나 `--mock-state examples/remote-seed.json` 으로 연습 |
-| `apply needs --yes when not running in an interactive terminal` | CI 등 터미널이 아닌 곳에서 확인 질문을 할 수 없음 | `apply --yes` |
-| `label "latest" is reserved` | `latest` 는 Langfuse 가 최신 버전에 자동으로 붙임 | 파일의 `labels` 에서 `latest` 제거 |
-| `type change text → chat is not allowed` | Langfuse 는 처음 정한 타입을 유지함 | 새 프롬프트 이름을 사용 |
-| `drift ...` 경고 | Langfuse 화면 등에서 promptplan 밖에서 만든 최신 버전이 있음 | Langfuse 에서 확인하거나 변경을 파일에 반영. 덮어쓰지 않음 |
-| 파일에서 라벨을 뺐는데 서버에는 남아 있음 | 라벨 PATCH 는 추가·이동만 하고 떼지 못함 | Langfuse 화면에서 직접 제거 |
-| `no prompt files (.md, .yaml, .yml) in ...` 또는 `prompt folder not found` | `--dir` 폴더가 비었거나 경로가 틀림(종료 코드 1) | `--dir` 경로를 확인하고 `.md`·`.yaml`·`.yml` 파일을 넣기 |
-| `apply --mock-state` 후 `mock-state.json` 이 바뀜 | `apply` 만 결과를 그 파일에 다시 씀(`plan` 은 읽기만 합니다) | 시드를 복사해서 쓰고 끝나면 삭제 |
+| `No Langfuse keys found` | There are neither keys nor `--mock-state` | Give keys with `--env-file .env`, or practice with `--mock-state examples/remote-seed.json` |
+| `apply needs --yes when not running in an interactive terminal` | A confirmation question cannot be asked where there is no terminal, such as CI | `apply --yes` |
+| `label "latest" is reserved` | Langfuse attaches `latest` to the newest version automatically | Remove `latest` from the file's `labels` |
+| `type change text → chat is not allowed` | Langfuse keeps the type chosen first | Use a new prompt name |
+| `drift ...` warning | There is a latest version created outside promptplan, for example in the Langfuse UI | Check it in Langfuse or reflect the change in the file. It is not overwritten |
+| You removed a label from the file but it remains on the server | A label PATCH only adds or moves and cannot remove | Remove it yourself in the Langfuse UI |
+| `no prompt files (.md, .yaml, .yml) in ...` or `prompt folder not found` | The `--dir` folder is empty or the path is wrong (exit code 1) | Check the `--dir` path and put in `.md`, `.yaml`, `.yml` files |
+| `mock-state.json` changed after `apply --mock-state` | Only `apply` writes the result back to that file (`plan` only reads) | Copy the seed and use the copy, then delete it when done |
 
-## 개발·기여
+## Development and contributing
 ```bash
-npm test    # 빌드 후 31개 테스트, 네트워크 없음
+npm test    # 31 tests after the build, no network
 ```
-버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
+Please leave bugs and suggestions as issues. The change log is [CHANGELOG.md](CHANGELOG.md).
 
-## 라이선스
-MIT. 연습용 목 서버는 외부 모델·데이터를 쓰지 않습니다. 런타임 의존성은 `yaml` 하나입니다.
+## License
+MIT. The practice mock server uses no external model or data. The only runtime dependency is `yaml`.
