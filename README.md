@@ -1,5 +1,7 @@
 # promptplan
 
+**한국어** | [English](README.en.md)
+
 > **English summary** — Git-first prompt deployment for Langfuse: `plan` shows what would change, `apply` creates a new version only when the content changed and moves labels otherwise. For teams that keep prompts in Git, review them in pull requests and deploy from CI. Try it without an account: `git clone https://github.com/LeeGyeongPil/promptplan && cd promptplan && npm install && npm run demo` (practice mock mode).
 
 프롬프트 파일 폴더와 Langfuse 를 비교해서 "무엇이 바뀌는지"를 미리 보여 주고(`plan`), 바뀐 것만 새 버전으로 올리거나 라벨만 옮기는(`apply`) CLI 입니다. 손으로 짠 deploy 스크립트가 같은 내용으로 버전을 계속 쌓는 문제를 없애 줍니다.
