@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 - 2026-11-13
+
+### Added
+
+- Screen language selection: the CLI help, progress and error messages, the text and Markdown plan reports and the demo are available in English and Korean. Choose with `--lang en|ko`, then the `PROMPTPLAN_LANG` environment variable, then `LC_ALL`, `LC_MESSAGES` and `LANG` (a value starting with `ko` means Korean; anything else is English). An invalid `--lang` value exits with code 1.
+- Argument errors (`promptplan: error: ...`) and unknown-command errors are shown in the chosen language too; the language is decided before the arguments are parsed.
+- Library exceptions now carry a message key and parameters (`PromptplanError`, also the base class of `LangfuseApiError`). The default `message` stays English, so library users see no change. `renderPlanText`, `renderApplyText`, `renderPlanMarkdown` and `runDemo` accept an optional `lang`.
+
+### Changed
+
+- Human-readable output follows the environment language: with `LANG=ko_KR.UTF-8` the plan, apply and pull text is Korean. If a script compares this text, pin the language with `--lang en` or `PROMPTPLAN_LANG=en`.
+- Unchanged: `--format json` output, exit codes (0, 1, 2), the practice mock's HTTP responses, validation rules, and the `[promptplan] ...` commit message prefix are the same in both languages.
+
+
 ## 0.1.3 - 2026-11-11
 
 ### Fixed
