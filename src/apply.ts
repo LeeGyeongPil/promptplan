@@ -5,8 +5,9 @@
 // 첫 오류에서 멈추고, 끝난 것과 남은 것을 돌려준다(반쯤 적용된 상태를 사람이 알 수 있게).
 
 import type { PromptApi } from "./client.js";
+import { PromptplanError, type Msg } from "./i18n.js";
 import type { Plan, PromptChange } from "./types.js";
-import { COMMIT_PREFIX, commitMessageProblem } from "./validate.js";
+import { COMMIT_PREFIX, commitMessageIssue, commitMessageProblem } from "./validate.js";
 
 export interface ApplyOptions {
   /** --message. 없으면 파일의 commitMessage → GITHUB_SHA → "apply" 순서 */
@@ -30,7 +31,7 @@ export interface ApplyResult {
   createdVersions: number;
   labelMoves: number;
   /** 실패했으면 어느 프롬프트에서 무슨 오류였는지 */
-  failed: { name: string; message: string } | null;
+  failed: { name: string; message: string; i18n?: Msg } | null;
   /** 실패 때문에 보내지 못한 프롬프트 이름 */
   remaining: string[];
 }
@@ -43,10 +44,10 @@ export function commitMessageFor(fileMessage: string | undefined, options: Apply
 }
 
 export async function applyPlan(plan: Plan, api: PromptApi, options: ApplyOptions = {}): Promise<ApplyResult> {
-  if (plan.errors.length > 0) throw new Error(`plan has ${plan.errors.length} error(s); nothing was applied`);
+  if (plan.errors.length > 0) throw new PromptplanError("plan.applyHasErrors", { n: plan.errors.length });
   if (options.message !== undefined) {
     const issue = commitMessageProblem(COMMIT_PREFIX + options.message);
-    if (issue) throw new Error(`--message: ${issue}`);
+    if (issue) throw new PromptplanError("apply.messageFlag", { issue: commitMessageIssue(COMMIT_PREFIX + options.message) as Msg });
   }
 
   const todo = plan.changes.filter((change) => change.request !== null);
@@ -69,7 +70,11 @@ export async function applyPlan(plan: Plan, api: PromptApi, options: ApplyOption
       result.steps.push(step);
       options.onStep?.(step);
     } catch (error) {
-      result.failed = { name: change.name, message: (error as Error).message };
+      result.failed = {
+        name: change.name,
+        message: (error as Error).message,
+        ...(error instanceof PromptplanError ? { i18n: error.i18n } : {}),
+      };
       result.remaining = todo.slice(index + 1).map((c) => c.name);
       break;
     }

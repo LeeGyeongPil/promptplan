@@ -7,6 +7,7 @@ import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify } from "yaml";
 import type { PromptApi } from "./client.js";
+import { PromptplanError } from "./i18n.js";
 import { normalizeConfig, normalizePromptBody } from "./normalize.js";
 import type { ChatMessage, RemotePrompt } from "./types.js";
 import { byCodepoint, isPlainObject, sortedUnique } from "./util.js";
@@ -70,13 +71,13 @@ export function renderPromptFile(remote: RemotePrompt): string {
 
   if (remote.type === "text") {
     const body = normalizePromptBody("text", remote.prompt);
-    if (typeof body !== "string") throw new Error(`${remote.name}: unexpected text prompt body`);
+    if (typeof body !== "string") throw new PromptplanError("pull.badTextBody", { name: remote.name });
     // 프론트매터는 언제나 쓴다 — 본문이 "---" 로 시작해도 첫 닫는 줄이 우리 것이라 안전하다.
     return `---\n${stringify(meta, { lineWidth: 0 }).trimEnd()}\n---\n${body}\n`;
   }
 
   const body = normalizePromptBody("chat", remote.prompt);
-  if (!Array.isArray(body)) throw new Error(`${remote.name}: unexpected chat prompt body`);
+  if (!Array.isArray(body)) throw new PromptplanError("pull.badChatBody", { name: remote.name });
   meta["messages"] = body.map((message: ChatMessage) =>
     message.type === "placeholder" ? { placeholder: message.name } : { role: message.role, content: message.content },
   );

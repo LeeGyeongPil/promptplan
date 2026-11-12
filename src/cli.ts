@@ -10,6 +10,7 @@ import { applyPlan } from "./apply.js";
 import { createClient, type PromptApi } from "./client.js";
 import { loadEnvFile, resolveConnection, type Connection, type Env } from "./config.js";
 import { runDemo } from "./demo.js";
+import { errorText, isLang, langFlagFromArgv, PromptplanError, resolveLang, t, type Lang, type Params, type MsgKey } from "./i18n.js";
 import { loadPromptDir } from "./files.js";
 import { readMockState, startMockServer, writeMockState } from "./mock/server.js";
 import { createPlan, hasChanges } from "./planner.js";
@@ -17,36 +18,9 @@ import { pullPrompts } from "./pull.js";
 import { renderPlanJson } from "./render/json.js";
 import { renderPlanMarkdown } from "./render/markdown.js";
 import { renderApplyText, renderPlanText } from "./render/text.js";
-import { labelProblem } from "./validate.js";
+import { labelIssue } from "./validate.js";
 
 export const VERSION = (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
-
-const HELP = `promptplan ${VERSION} — Git-first prompt deployment for Langfuse
-
-Usage
-  promptplan plan  [--dir prompts] [--label <l>]... [--format text|markdown|json]
-                   [--detailed-exitcode] [--mock-state <file>] [--env-file <file>] [--no-color]
-  promptplan apply [--dir prompts] [--label <l>]... [--yes] [--message <m>]
-                   [--mock-state <file>] [--env-file <file>] [--no-color]
-  promptplan pull  [--dir prompts] [--label production] [--force] [--mock-state <file>] [--env-file <file>]
-  promptplan mock  [--port 3999] [--seed <file>]     run the practice mock until Ctrl+C
-  promptplan demo                                    plan → apply → plan against the practice mock
-
-Options
-  --dir <path>           prompt folder (.md = text prompt, .yaml/.yml = chat prompt). Default: prompts
-  --label <l>            use these labels for every prompt instead of the files' labels (promotion)
-  --format <f>           plan output: text (default), markdown (PR comment) or json
-  --detailed-exitcode    plan exits 2 when there are changes, 0 when there are none
-  --yes, -y              apply without asking (required when not in an interactive terminal)
-  --message, -m <m>      commit message for new versions (stored as "[promptplan] <m>")
-  --force                pull overwrites existing files
-  --mock-state <file>    use the practice mock loaded from this JSON file instead of Langfuse
-                         (apply writes the new mock state back to the file)
-  --env-file <file>      read LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL from a file
-  --no-color             plain output (also honours NO_COLOR)
-
-Exit codes: 0 ok · 2 changes (plan --detailed-exitcode) · 1 error
-`;
 
 export interface CliIO {
   stdout: (text: string) => void;
@@ -93,7 +67,32 @@ function splitLabels(values: string[] | undefined): string[] | null {
   return values.flatMap((value) => value.split(",")).map((label) => label.trim()).filter((label) => label !== "");
 }
 
+/** parseArgs 의 영어 오류를 고른 언어로 바꾼다. 영어면 Node 의 원래 문장 그대로. */
+function parseErrorText(error: unknown, lang: Lang): string {
+  const original = error instanceof Error ? error.message : String(error);
+  if (lang === "en") return original;
+  const code = (error as { code?: string }).code;
+  const option = /'([^']*)'/.exec(original)?.[1] ?? "";
+  const key: MsgKey =
+    code === "ERR_PARSE_ARGS_UNKNOWN_OPTION"
+      ? "cli.parseUnknownOption"
+      : code === "ERR_PARSE_ARGS_INVALID_OPTION_VALUE"
+        ? "cli.parseBadOptionValue"
+        : code === "ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL"
+          ? "cli.parseUnexpectedPositional"
+          : "cli.parseOther";
+  const params: Params = key === "cli.parseOther" ? { message: original } : { option };
+  return t(lang, key, params);
+}
+
 export async function main(argv: string[], io: CliIO): Promise<number> {
+  // 언어는 parseArgs 보다 먼저 정한다 — 인자 오류 문구도 고른 언어로 내기 위해서다.
+  let lang = resolveLang(langFlagFromArgv(argv), io.env);
+  const say = (key: MsgKey, params?: Params): string => t(lang, key, params);
+  const fail = (message: string): number => {
+    io.stderr(say("cli.errorLine", { message }));
+    return 1;
+  };
   let parsed;
   try {
     parsed = parseArgs({
@@ -111,6 +110,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         "mock-state": { type: "string" },
         "env-file": { type: "string" },
         "no-color": { type: "boolean" },
+        lang: { type: "string" },
         port: { type: "string" },
         seed: { type: "string" },
         help: { type: "boolean", short: "h" },
@@ -118,10 +118,12 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       },
     });
   } catch (error) {
-    io.stderr(`promptplan: error: ${(error as Error).message}\nRun promptplan --help for usage.\n`);
+    io.stderr(say("cli.errorLine", { message: parseErrorText(error, lang) }) + say("cli.helpHint"));
     return 1;
   }
   const { values, positionals } = parsed;
+  if (values.lang !== undefined && !isLang(values.lang)) return fail(`${t("en", "cli.langInvalid")} / ${t("ko", "cli.langInvalid")}`);
+  lang = resolveLang(values.lang, io.env);
   const command = positionals[0];
 
   if (values.version) {
@@ -129,33 +131,31 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     return 0;
   }
   if (values.help || command === undefined || command === "help") {
-    io.stdout(HELP);
+    io.stdout(say("help", { version: VERSION }));
     return command === undefined && !values.help ? 1 : 0;
   }
   if (positionals.length > 1) {
-    io.stderr(`promptplan: error: unexpected argument "${positionals[1]}"\n`);
-    return 1;
+    return fail(say("cli.unexpectedArg", { arg: positionals[1] ?? "" }));
   }
 
   const color = io.stdoutIsTTY && !values["no-color"] && !io.env["NO_COLOR"];
 
   try {
-    if (command === "demo") return await runDemo({ write: io.stdout, color });
-    if (command === "mock") return await runMock(values.port, values.seed, io);
+    if (command === "demo") return await runDemo({ write: io.stdout, color, lang });
+    if (command === "mock") return await runMock(values.port, values.seed, io, lang);
     if (command !== "plan" && command !== "apply" && command !== "pull") {
-      io.stderr(`promptplan: error: unknown command "${command}" (plan, apply, pull, mock, demo)\n`);
-      return 1;
+      return fail(say("cli.unknownCommand", { command }));
     }
 
     const labels = splitLabels(values.label);
     for (const label of labels ?? []) {
-      const issue = labelProblem(label);
-      if (issue) throw new Error(`--label: ${issue}`);
+      const issue = labelIssue(label);
+      if (issue) throw new PromptplanError("cli.labelFlag", { issue });
     }
-    if (command === "pull" && labels && labels.length !== 1) throw new Error("pull takes exactly one --label");
+    if (command === "pull" && labels && labels.length !== 1) throw new PromptplanError("cli.pullOneLabel");
     const format = values.format ?? "text";
-    if (!["text", "markdown", "json"].includes(format)) throw new Error(`--format must be text, markdown or json`);
-    if (command !== "plan" && values.format !== undefined) throw new Error(`--format is only for plan`);
+    if (!["text", "markdown", "json"].includes(format)) throw new PromptplanError("cli.formatInvalid");
+    if (command !== "plan" && values.format !== undefined) throw new PromptplanError("cli.formatOnlyPlan");
 
     let env = io.env;
     if (values["env-file"]) env = await loadEnvFile(values["env-file"], env);
@@ -166,66 +166,64 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     try {
       if (command === "pull") {
         const result = await pullPrompts(session.api, { dir, label: labels?.[0] ?? "production", force: values.force ?? false });
-        for (const file of result.written) io.stdout(`+ wrote ${file}\n`);
-        for (const file of result.skipped) io.stdout(`= kept ${file} (exists; use --force to overwrite)\n`);
+        for (const file of result.written) io.stdout(say("pull.wrote", { file }));
+        for (const file of result.skipped) io.stdout(say("pull.kept", { file }));
         if (result.missingLabel.length > 0)
-          io.stdout(`  no "${labels?.[0] ?? "production"}" version: ${result.missingLabel.join(", ")}\n`);
-        if (result.unsafe.length > 0) io.stdout(`  skipped names that are not safe file paths: ${result.unsafe.join(", ")}\n`);
-        io.stdout(`Pulled: ${result.written.length} written, ${result.skipped.length} kept\n`);
+          io.stdout(say("pull.noLabel", { label: labels?.[0] ?? "production", list: result.missingLabel.join(", ") }));
+        if (result.unsafe.length > 0) io.stdout(say("pull.unsafe", { list: result.unsafe.join(", ") }));
+        io.stdout(say("pull.summary", { written: result.written.length, kept: result.skipped.length }));
         return 0;
       }
 
       const { specs, errors } = await loadPromptDir(dir);
-      const plan = await createPlan(specs, errors, session.api, { target: connection.target, labelOverride: labels });
+      const plan = await createPlan(specs, errors, session.api, { target: connection.target, targetMsg: connection.targetMsg, labelOverride: labels });
 
       if (command === "plan") {
         if (format === "json") io.stdout(renderPlanJson(plan));
-        else if (format === "markdown") io.stdout(renderPlanMarkdown(plan));
-        else io.stdout(renderPlanText(plan, { color }));
+        else if (format === "markdown") io.stdout(renderPlanMarkdown(plan, { lang }));
+        else io.stdout(renderPlanText(plan, { color, lang }));
         if (plan.errors.length > 0) return 1;
         return values["detailed-exitcode"] && hasChanges(plan) ? 2 : 0;
       }
 
       // ---- apply ----
-      io.stdout(renderPlanText(plan, { color }));
+      io.stdout(renderPlanText(plan, { color, lang }));
       if (plan.errors.length > 0) return 1;
       if (!hasChanges(plan)) return 0;
       if (!values.yes) {
         if (!io.stdinIsTTY) {
-          io.stderr("promptplan: error: apply needs --yes when not running in an interactive terminal (for example in CI)\n");
-          return 1;
+          return fail(say("cli.applyNeedsYes"));
         }
-        const answer = await (io.ask ?? askOnStdin)("\nApply these changes? Only 'yes' is accepted: ");
+        const answer = await (io.ask ?? askOnStdin)(say("cli.askApply"));
         if (answer.trim() !== "yes") {
-          io.stdout("Apply cancelled.\n");
+          io.stdout(say("cli.applyCancelled"));
           return 1;
         }
       }
       io.stdout("\n");
       const result = await applyPlan(plan, session.api, { message: values.message, env });
-      io.stdout(renderApplyText(result, { color }));
+      io.stdout(renderApplyText(result, { color, lang }));
       if (connection.kind === "mock" && result.steps.length > 0) {
         await session.save();
-        io.stdout(`(practice mock state written back to ${values["mock-state"]})\n`);
+        io.stdout(say("cli.mockStateWritten", { file: values["mock-state"] ?? "" }));
       }
       return result.failed ? 1 : 0;
     } finally {
       await session.close();
     }
   } catch (error) {
-    io.stderr(`promptplan: error: ${(error as Error).message}\n`);
-    return 1;
+    return fail(errorText(error, lang));
   }
 }
 
-async function runMock(port: string | undefined, seedFile: string | undefined, io: CliIO): Promise<number> {
+async function runMock(port: string | undefined, seedFile: string | undefined, io: CliIO, lang: Lang): Promise<number> {
   const portNumber = Number(port ?? 3999);
-  if (!Number.isInteger(portNumber) || portNumber < 0 || portNumber > 65535) throw new Error("--port must be 0-65535");
+  if (!Number.isInteger(portNumber) || portNumber < 0 || portNumber > 65535) throw new PromptplanError("cli.portRange");
   const seed = seedFile ? await readMockState(seedFile) : undefined;
   const mock = await startMockServer({ seed, port: portNumber });
-  io.stdout(`promptplan practice mock — a fake Langfuse prompt API (not the real server)\n`);
-  io.stdout(`  LANGFUSE_BASE_URL=${mock.url}   any pk/sk keys are accepted · state lives in memory only\n`);
-  io.stdout(`  Stop with Ctrl+C.\n`);
+  io.stdout(t(lang, "mock.title"));
+  io.stdout(t(lang, "mock.url", { url: mock.url }));
+  io.stdout(t(lang, "mock.stop"));
   try {
     await (io.waitForStop ?? waitForSignal)();
   } finally {

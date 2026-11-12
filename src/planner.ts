@@ -10,6 +10,7 @@
 
 import type { PromptApi } from "./client.js";
 import { unifiedDiff } from "./diff.js";
+import { msg, planText, PromptplanError, type Msg } from "./i18n.js";
 import { configLines, contentKey, promptLines } from "./normalize.js";
 import type {
   LabelMove,
@@ -23,11 +24,13 @@ import type {
 } from "./types.js";
 import { byCodepoint, mapLimit, sortedUnique, stableStringify } from "./util.js";
 import { compareSlots, extractSlots } from "./variables.js";
-import { COMMIT_PREFIX, labelProblem, validateAgainstRemote, validateSpecs } from "./validate.js";
+import { COMMIT_PREFIX, labelIssue, validateAgainstRemote, validateSpecs } from "./validate.js";
 
 export interface PlanOptions {
   /** 사람이 읽는 대상 설명(포트·경로 없이). 예: "practice mock (--mock-state)" */
   target: string;
+  /** Localizable form of `target` for the CLI (optional) */
+  targetMsg?: Msg;
   /** --label 로 준 라벨들. 있으면 파일의 labels 대신 모든 프롬프트에 이 라벨을 쓴다(승격용) */
   labelOverride?: string[] | null;
   /** 원격 조회 동시 개수(기본 4 — Langfuse Cloud 요청 한도를 생각해 작게) */
@@ -45,8 +48,8 @@ export async function createPlan(
   // 1) 파일만 보고 알 수 있는 오류
   const errors: PlanError[] = [...loadErrors, ...validateSpecs(specs, labelOverride)];
   for (const label of labelOverride ?? []) {
-    const issue = labelProblem(label);
-    if (issue) errors.push({ name: "--label", file: "--label", message: issue });
+    const issue = labelIssue(label);
+    if (issue) errors.push({ name: "--label", file: "--label", ...planText(issue) });
   }
 
   // 2) 원격 목록 — 타입 변경 검사와 "관리 밖 프롬프트" 계산에 쓴다
@@ -64,6 +67,7 @@ export async function createPlan(
   if (errors.length > 0) {
     return {
       target: options.target,
+      ...(options.targetMsg ? { targetMsg: options.targetMsg } : {}),
       labelOverride,
       changes: [],
       unmanaged,
@@ -80,6 +84,7 @@ export async function createPlan(
 
   return {
     target: options.target,
+    ...(options.targetMsg ? { targetMsg: options.targetMsg } : {}),
     labelOverride,
     changes,
     unmanaged,
@@ -140,7 +145,7 @@ async function planOne(
   const byVersion = new Map<number, RemotePrompt>();
   const holder = new Map<string, number>(); // 라벨 → 지금 그 라벨이 붙은 버전
   const latest = await api.getPrompt(spec.name, { version: latestNumber });
-  if (!latest) throw new Error(`${spec.name}: latest version v${latestNumber} disappeared while planning — run plan again`);
+  if (!latest) throw new PromptplanError("plan.latestGone", { name: spec.name, version: latestNumber });
   byVersion.set(latest.version, latest);
   const remoteLabels = sortedUnique(meta.labels.filter((label) => label !== "latest"));
   for (const label of remoteLabels) {
@@ -210,10 +215,10 @@ async function planOne(
   // ---- 드리프트: 최신 버전이 promptplan 이 만든 것도 아니고 파일 내용도 아니다 ----
   // (누군가 Langfuse UI 에서 직접 고친 버전) — 덮어쓰지 않고 알려 준다.
   if (latest.version !== change.targetVersion && !(latest.commitMessage ?? "").startsWith(COMMIT_PREFIX.trim())) {
-    const note = latest.commitMessage ? ` (commit message: "${oneLine(latest.commitMessage)}")` : "";
+    const note = latest.commitMessage ? msg("warn.driftNote", { message: oneLine(latest.commitMessage) }) : "";
     warnings.unshift({
       kind: "drift",
-      message: `latest v${latest.version} was created outside promptplan${note} and is not in your files — review it in Langfuse or copy the change into ${spec.file}`,
+      ...planText(msg("warn.drift", { version: latest.version, note, file: spec.file })),
     });
   }
 
@@ -223,10 +228,7 @@ async function planOne(
     const to = `[${spec.tags.join(", ")}]`;
     warnings.push({
       kind: "tags",
-      message:
-        change.action === "new-version"
-          ? `tags change ${from} → ${to} for all versions of this prompt`
-          : `tags differ (${from} in Langfuse, ${to} in file) — Langfuse only updates tags when a new version is created`,
+      ...planText(change.action === "new-version" ? msg("warn.tagsChange", { from, to }) : msg("warn.tagsDiffer", { from, to })),
     });
   }
 

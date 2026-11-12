@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { applyPlan } from "./apply.js";
 import { createClient } from "./client.js";
+import { msg, t, type Lang } from "./i18n.js";
 import { loadPromptDir } from "./files.js";
 import { createPlan } from "./planner.js";
 import { renderApplyText, renderPlanText } from "./render/text.js";
@@ -17,6 +18,8 @@ export const EXAMPLES_DIR = fileURLToPath(new URL("../../examples/", import.meta
 export interface DemoOptions {
   write: (text: string) => void;
   color?: boolean;
+  /** 화면 언어(기본 en) */
+  lang?: Lang;
 }
 
 function countVersions(state: MockState): number {
@@ -32,41 +35,44 @@ function countWrites(mock: MockServer): { post: number; patch: number } {
 
 export async function runDemo(options: DemoOptions): Promise<number> {
   const write = options.write;
+  const lang = options.lang ?? "en";
+  const render = { color: options.color, lang };
   const seed = await readMockState(path.join(EXAMPLES_DIR, "remote-seed.json"));
   const { specs, errors } = await loadPromptDir(path.join(EXAMPLES_DIR, "prompts"));
   const target = "practice mock (demo)";
+  const targetMsg = msg("target.demo");
 
-  write("promptplan demo — practice mock mode\n");
-  write("  The 'remote' is an in-memory fake of the Langfuse prompt API, not the real server.\n");
-  write("  Files:  examples/prompts/   Remote start state: examples/remote-seed.json (not modified)\n\n");
+  write(t(lang, "demo.title"));
+  write(t(lang, "demo.fake"));
+  write(t(lang, "demo.files"));
 
   const mock = await startMockServer({ seed });
   try {
     const api = createClient({ baseUrl: mock.url, publicKey: "pk-lf-practice", secretKey: "sk-lf-practice" });
     const versionsAtStart = countVersions(mock.snapshot());
 
-    write("== 1/4  plan: what would change? ==\n\n");
-    const first = await createPlan(specs, errors, api, { target });
-    write(renderPlanText(first, { color: options.color }));
+    write(t(lang, "demo.step1"));
+    const first = await createPlan(specs, errors, api, { target, targetMsg });
+    write(renderPlanText(first, render));
     if (first.errors.length > 0) return 1;
 
-    write("\n== 2/4  apply: send only what changed ==\n\n");
+    write(t(lang, "demo.step2"));
     const before = countWrites(mock);
     const result = await applyPlan(first, api, { message: "demo" });
-    write(renderApplyText(result, { color: options.color }));
+    write(renderApplyText(result, render));
     const after = countWrites(mock);
-    write(`  requests sent: ${after.post - before.post} POST, ${after.patch - before.patch} PATCH\n`);
+    write(t(lang, "demo.requests", { post: after.post - before.post, patch: after.patch - before.patch }));
     if (result.failed) return 1;
     const versionsAfterApply = countVersions(mock.snapshot());
 
-    write("\n== 3/4  plan again: nothing left to do ==\n\n");
-    const second = await createPlan(specs, errors, api, { target });
-    write(renderPlanText(second, { color: options.color }));
+    write(t(lang, "demo.step3"));
+    const second = await createPlan(specs, errors, api, { target, targetMsg });
+    write(renderPlanText(second, render));
     const again = await applyPlan(second, api, { message: "demo" });
-    write(`  apply again: ${again.createdVersions} new versions, ${again.labelMoves} label moves (idempotent)\n`);
+    write(t(lang, "demo.applyAgain", { created: again.createdVersions, moves: again.labelMoves }));
     const versionsAfterSecond = countVersions(mock.snapshot());
 
-    write("\n== 4/4  why compare first? ==\n\n");
+    write(t(lang, "demo.step4"));
     // 비교 없이 매번 POST 하는 흔한 배포 스크립트를 같은 시작 상태의 다른 목에서 두 번 돌려 본다.
     const naive = await startMockServer({ seed });
     try {
@@ -81,14 +87,14 @@ export async function runDemo(options: DemoOptions): Promise<number> {
             labels: spec.labels,
           });
       const naiveVersions = countVersions(naive.snapshot());
-      write(`  A script that POSTs every file on every CI run:  ${versionsAtStart} → ${naiveVersions} versions after 2 runs\n`);
-      write(`  promptplan apply, then apply again:              ${versionsAtStart} → ${versionsAfterApply} → ${versionsAfterSecond} versions\n`);
-      write("  Langfuse makes a new version on every POST, even with identical content — so compare first.\n");
+      write(t(lang, "demo.naive", { start: versionsAtStart, naive: naiveVersions }));
+      write(t(lang, "demo.smart", { start: versionsAtStart, applied: versionsAfterApply, second: versionsAfterSecond }));
+      write(t(lang, "demo.why"));
     } finally {
       await naive.close();
     }
 
-    write("\nTry it yourself: npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.json\n");
+    write(t(lang, "demo.tryIt"));
     return 0;
   } finally {
     await mock.close();

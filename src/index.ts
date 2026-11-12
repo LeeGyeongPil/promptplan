@@ -12,5 +12,6 @@ export { renderPlanJson, PLAN_VERSION } from "./render/json.js";
 export { contentKey } from "./normalize.js";
 export { extractSlots } from "./variables.js";
 export { startMockServer, readMockState, writeMockState, type MockServer, type MockState } from "./mock/server.js";
+export { PromptplanError, resolveLang, langFromEnv, type Lang, type Msg } from "./i18n.js";
 export { resolveConnection, loadEnvFile, type Connection } from "./config.js";
 export type * from "./types.js";

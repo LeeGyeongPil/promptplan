@@ -7,6 +7,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { ChatMessage, PlanError, PromptSpec } from "./types.js";
+import { msg, planText, PromptplanError, type Msg } from "./i18n.js";
 import { normalizeText } from "./normalize.js";
 import { byCodepoint, isPlainObject, sortedUnique } from "./util.js";
 
@@ -43,12 +44,12 @@ export async function loadPromptDir(dir: string): Promise<LoadResult> {
     files = await listPromptFiles(dir);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    const message = code === "ENOENT" ? "prompt folder not found" : `cannot read prompt folder (${code ?? String(error)})`;
-    return { specs: [], errors: [{ name: dir, file: dir, message }] };
+    const issue = code === "ENOENT" ? msg("files.folderNotFound") : msg("files.folderUnreadable", { code: code ?? String(error) });
+    return { specs: [], errors: [{ name: dir, file: dir, ...planText(issue) }] };
   }
   // 폴더는 읽혔지만 프롬프트 파일이 하나도 없으면 오류: --dir 오지정이 CI 에서 조용히 통과하지 않게.
   if (files.length === 0)
-    return { specs: [], errors: [{ name: ".", file: ".", message: `no prompt files (.md, .yaml, .yml) in ${dir}` }] };
+    return { specs: [], errors: [{ name: ".", file: ".", ...planText(msg("files.noPromptFiles", { dir })) }] };
   const specs: PromptSpec[] = [];
   const errors: PlanError[] = [];
   for (const file of files) {
@@ -56,7 +57,12 @@ export async function loadPromptDir(dir: string): Promise<LoadResult> {
     try {
       specs.push(parsePromptFile(file, text));
     } catch (error) {
-      errors.push({ name: nameFromPath(file), file, message: (error as Error).message });
+      errors.push({
+        name: nameFromPath(file),
+        file,
+        message: (error as Error).message,
+        ...(error instanceof PromptplanError ? { i18n: error.i18n } : {}),
+      });
     }
   }
   specs.sort((a, b) => byCodepoint(a.name, b.name));
@@ -77,25 +83,25 @@ export function parsePromptFile(file: string, content: string): PromptSpec {
     meta = split.meta;
     body = split.body;
   } else {
-    meta = parseYamlObject(content, "file");
+    meta = parseYamlObject(content, msg("files.whatFile"));
   }
 
   const allowed = isMarkdown ? TEXT_KEYS : CHAT_KEYS;
   for (const key of Object.keys(meta))
-    if (!allowed.includes(key)) throw new Error(`unknown key "${key}" (allowed: ${allowed.join(", ")})`);
+    if (!allowed.includes(key)) throw new PromptplanError("files.unknownKey", { key, allowed: allowed.join(", ") });
 
   const type = meta["type"] ?? (isMarkdown ? "text" : "chat");
-  if (isMarkdown && type !== "text") throw new Error(`.md files are text prompts; write chat prompts as .yaml with messages:`);
-  if (!isMarkdown && type !== "chat") throw new Error(`.yaml files are chat prompts (type: chat); write text prompts as .md`);
+  if (isMarkdown && type !== "text") throw new PromptplanError("files.mdIsText");
+  if (!isMarkdown && type !== "chat") throw new PromptplanError("files.yamlIsChat");
 
   const name = meta["name"] === undefined ? nameFromPath(file) : meta["name"];
-  if (typeof name !== "string") throw new Error(`name must be a string`);
+  if (typeof name !== "string") throw new PromptplanError("files.nameString");
 
   const config = meta["config"];
-  if (config !== undefined && config !== null && !isPlainObject(config)) throw new Error(`config must be a mapping`);
+  if (config !== undefined && config !== null && !isPlainObject(config)) throw new PromptplanError("files.configMapping");
 
   const commitMessage = meta["commitMessage"];
-  if (commitMessage !== undefined && typeof commitMessage !== "string") throw new Error(`commitMessage must be a string`);
+  if (commitMessage !== undefined && typeof commitMessage !== "string") throw new PromptplanError("files.commitString");
 
   const prompt: string | ChatMessage[] = isMarkdown ? normalizeText(body) : parseMessages(meta["messages"]);
 
@@ -114,38 +120,38 @@ export function parsePromptFile(file: string, content: string): PromptSpec {
 function stringList(value: unknown, key: string): string[] | undefined {
   if (value === undefined || value === null) return undefined;
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string"))
-    throw new Error(`${key} must be a list of strings, e.g. ${key}: [staging]`);
+    throw new PromptplanError("files.listOfStrings", { key });
   return value as string[];
 }
 
 /** chat 메시지: { role, content } 또는 { placeholder: name } (또는 Langfuse 원형 { type: placeholder, name }). */
 function parseMessages(value: unknown): ChatMessage[] {
-  if (!Array.isArray(value) || value.length === 0) throw new Error(`messages must be a non-empty list`);
+  if (!Array.isArray(value) || value.length === 0) throw new PromptplanError("files.messagesList");
   return value.map((item, index) => {
     const where = `messages[${index}]`;
-    if (!isPlainObject(item)) throw new Error(`${where} must be a mapping`);
+    if (!isPlainObject(item)) throw new PromptplanError("files.messageMapping", { where });
     if (typeof item["placeholder"] === "string") return { type: "placeholder", name: item["placeholder"] };
     if (item["type"] === "placeholder") {
-      if (typeof item["name"] !== "string") throw new Error(`${where}: placeholder needs a name`);
+      if (typeof item["name"] !== "string") throw new PromptplanError("files.placeholderName", { where });
       return { type: "placeholder", name: item["name"] };
     }
-    if (item["type"] !== undefined && item["type"] !== "chatmessage") throw new Error(`${where}: unknown type "${String(item["type"])}"`);
+    if (item["type"] !== undefined && item["type"] !== "chatmessage") throw new PromptplanError("files.unknownType", { where, type: String(item["type"]) });
     if (typeof item["role"] !== "string" || typeof item["content"] !== "string")
-      throw new Error(`${where} needs role and content strings (or placeholder: <name>)`);
+      throw new PromptplanError("files.needsRoleContent", { where });
     return { type: "chatmessage", role: item["role"], content: normalizeText(item["content"]) };
   });
 }
 
-function parseYamlObject(text: string, what: string): Record<string, unknown> {
+function parseYamlObject(text: string, what: Msg): Record<string, unknown> {
   let value: unknown;
   try {
     value = parseYaml(text);
   } catch (error) {
     // yaml 의 오류 메시지는 여러 줄(코드 조각 포함)이라 첫 줄만 쓴다.
-    throw new Error(`invalid YAML in ${what}: ${String((error as Error).message).split("\n")[0]}`);
+    throw new PromptplanError("files.invalidYaml", { what, detail: String((error as Error).message).split("\n")[0] ?? "" });
   }
   if (value === null || value === undefined) return {};
-  if (!isPlainObject(value)) throw new Error(`${what} must be a YAML mapping`);
+  if (!isPlainObject(value)) throw new PromptplanError("files.yamlMapping", { what });
   return value;
 }
 
@@ -156,8 +162,8 @@ function splitFrontMatter(content: string): { meta: Record<string, unknown>; bod
   const lines = text.split("\n");
   // 닫는 줄은 정확히 "---" 인 첫 줄.
   const close = lines.indexOf("---", 1);
-  if (close === -1) throw new Error(`front matter starts with --- but has no closing --- line`);
-  const meta = parseYamlObject(lines.slice(1, close).join("\n"), "front matter");
+  if (close === -1) throw new PromptplanError("files.noClosingFence");
+  const meta = parseYamlObject(lines.slice(1, close).join("\n"), msg("files.whatFrontMatter"));
   const body = lines.slice(close + 1).join("\n");
   return { meta, body };
 }

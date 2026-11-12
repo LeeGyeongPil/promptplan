@@ -1,6 +1,8 @@
 // promptplan 이 주고받는 데이터 모양.
 // Langfuse 공개 API v2 의 프롬프트 타입(@langfuse/core 6.1.1 기준)을 필요한 만큼만 옮겼다.
 
+import type { Msg } from "./i18n.js";
+
 export type PromptType = "text" | "chat";
 
 /** chat 프롬프트의 한 줄. 일반 메시지 또는 실행 때 메시지 배열을 끼우는 플레이스홀더. */
@@ -65,6 +67,8 @@ export interface PlanError {
   name: string;
   file: string;
   message: string;
+  /** Message key + params so the CLI can show the error in the chosen language (not part of JSON output) */
+  i18n?: Msg;
 }
 
 export type WarningKind =
@@ -78,6 +82,8 @@ export type WarningKind =
 export interface PlanWarning {
   kind: WarningKind;
   message: string;
+  /** Message key + params for localized display (not part of JSON output) */
+  i18n?: Msg;
 }
 
 export type ChangeAction = "create" | "new-version" | "move" | "unchanged";
@@ -123,6 +129,8 @@ export interface PlanSummary {
 export interface Plan {
   /** 사람이 읽는 대상 설명(포트·경로 없음). 예: "practice mock (--mock-state)" */
   target: string;
+  /** Localizable form of `target` (not part of JSON output) */
+  targetMsg?: Msg;
   /** --label 로 라벨을 덮어썼으면 그 라벨들 */
   labelOverride: string[] | null;
   changes: PromptChange[];

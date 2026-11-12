@@ -14,7 +14,8 @@ export function renderPlanJson(plan: Plan): string {
     labelOverride: plan.labelOverride,
     hasChanges: plan.errors.length === 0 && hasChanges(plan),
     summary: plan.summary,
-    errors: plan.errors,
+    // 사람용 현지화 정보(i18n)는 기계용 출력에 넣지 않는다
+    errors: plan.errors.map((error) => ({ name: error.name, file: error.file, message: error.message })),
     unmanaged: plan.unmanaged,
     changes: plan.changes.map((change) => ({
       name: change.name,
@@ -26,7 +27,7 @@ export function renderPlanJson(plan: Plan): string {
       baselineVersion: change.baselineVersion,
       labels: change.labels,
       labelMoves: change.labelMoves,
-      warnings: change.warnings,
+      warnings: change.warnings.map((warning) => ({ kind: warning.kind, message: warning.message })),
       diff: change.diff,
     })),
   };

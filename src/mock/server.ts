@@ -12,6 +12,7 @@
 import http from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { PromptplanError } from "../i18n.js";
 import type { PromptType } from "../types.js";
 import { labelProblem, nameProblem, MAX_COMMIT_MESSAGE_LENGTH } from "../validate.js";
 import { byCodepoint, isPlainObject } from "../util.js";
@@ -160,7 +161,7 @@ export async function startMockServer(options: MockOptions = {}): Promise<MockSe
   for (const prompt of options.seed?.prompts ?? []) {
     const ordered = [...prompt.versions].sort((a, b) => a.version - b.version);
     ordered.forEach((v, index) => {
-      if (v.version !== index + 1) throw new Error(`mock seed: ${prompt.name} versions must be 1, 2, 3, … (found ${v.version})`);
+      if (v.version !== index + 1) throw new PromptplanError("mock.seedVersions", { name: prompt.name, found: v.version });
       addVersion({
         name: prompt.name,
         type: prompt.type,
@@ -378,19 +379,19 @@ export async function readMockState(file: string): Promise<MockState> {
   try {
     text = await readFile(file, "utf8");
   } catch (error) {
-    throw new Error(`cannot read mock state file ${file} (${(error as NodeJS.ErrnoException).code ?? String(error)})`);
+    throw new PromptplanError("mock.cannotRead", { file, code: (error as NodeJS.ErrnoException).code ?? String(error) });
   }
   let value: unknown;
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error("mock state file is not valid JSON");
+    throw new PromptplanError("mock.badJson");
   }
-  if (!isPlainObject(value) || !Array.isArray(value["prompts"])) throw new Error('mock state file needs { "prompts": [...] }');
+  if (!isPlainObject(value) || !Array.isArray(value["prompts"])) throw new PromptplanError("mock.needsPrompts");
   for (const prompt of value["prompts"] as unknown[]) {
     if (!isPlainObject(prompt) || typeof prompt["name"] !== "string" || !Array.isArray(prompt["versions"]))
-      throw new Error("each mock prompt needs name and versions");
-    if (prompt["type"] !== "text" && prompt["type"] !== "chat") throw new Error(`mock prompt ${prompt["name"]}: type must be text or chat`);
+      throw new PromptplanError("mock.needsNameVersions");
+    if (prompt["type"] !== "text" && prompt["type"] !== "chat") throw new PromptplanError("mock.badType", { name: String(prompt["name"]) });
   }
   return value as unknown as MockState;
 }

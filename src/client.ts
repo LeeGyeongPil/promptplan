@@ -2,6 +2,7 @@
 // 공식 SDK 를 쓰지 않는 이유: SDK 의 prompt.get 은 기본 60초 캐시가 있어 비교에 쓰기 까다롭고,
 // 재시도·타임아웃을 이 도구에 맞게 정하고 싶어서다(research 4-4·7-11).
 
+import { msg, PromptplanError, type Msg } from "./i18n.js";
 import type { CreatePromptBody, RemotePrompt, RemotePromptMeta } from "./types.js";
 import { isPlainObject } from "./util.js";
 
@@ -28,21 +29,21 @@ export interface ClientOptions {
 }
 
 /** Langfuse 가 2xx 가 아닌 응답을 줬을 때. */
-export class LangfuseApiError extends Error {
+export class LangfuseApiError extends PromptplanError {
   constructor(
     readonly status: number,
     readonly method: string,
     readonly path: string,
     readonly detail: string,
   ) {
-    super(`Langfuse API ${status} on ${method} ${path}: ${detail}${hintFor(status)}`);
+    super("api.error", { status, method, path, detail, hint: hintFor(status) });
     this.name = "LangfuseApiError";
   }
 }
 
-function hintFor(status: number): string {
-  if (status === 401) return " — check LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY and LANGFUSE_BASE_URL (EU, US and self-hosted use different URLs)";
-  if (status === 403) return " — the key may not be allowed to move a protected label (e.g. production); use an admin key or move it in the Langfuse UI";
+function hintFor(status: number): Msg | string {
+  if (status === 401) return msg("api.hint401");
+  if (status === 403) return msg("api.hint403");
   return "";
 }
 
@@ -90,8 +91,8 @@ export function createClient(options: ClientOptions): PromptApi {
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        const cause = (error as Error).name === "TimeoutError" ? `no response within ${timeoutMs / 1000}s` : String((error as Error).cause ?? error);
-        throw new Error(`cannot reach Langfuse (${method} ${path}): ${cause}`);
+        const cause: Msg | string = (error as Error).name === "TimeoutError" ? msg("api.timeout", { seconds: timeoutMs / 1000 }) : String((error as Error).cause ?? error);
+        throw new PromptplanError("api.unreachable", { method, path, cause });
       }
       const text = await response.text();
       if (response.ok) return { status: response.status, json: text ? JSON.parse(text) : undefined };
@@ -109,9 +110,9 @@ export function createClient(options: ClientOptions): PromptApi {
       const out: RemotePromptMeta[] = [];
       for (let page = 1; ; page++) {
         // 잘린 목록으로 plan 하면 타입 검사·관리 밖 표시가 틀어진다 → 조용히 자르지 않고 멈춘다.
-        if (page > MAX_PAGES) throw new Error(`Langfuse returned more than ${MAX_PAGES} pages of prompts; promptplan stops instead of planning on a partial list`);
+        if (page > MAX_PAGES) throw new PromptplanError("api.tooManyPages", { max: MAX_PAGES });
         const { json } = await call("GET", `${PROMPTS}?page=${page}&limit=50`);
-        if (!isPlainObject(json) || !Array.isArray(json["data"])) throw new Error("unexpected list response from Langfuse");
+        if (!isPlainObject(json) || !Array.isArray(json["data"])) throw new PromptplanError("api.badList");
         out.push(...(json["data"] as RemotePromptMeta[]));
         const meta = json["meta"];
         const totalPages = isPlainObject(meta) && typeof meta["totalPages"] === "number" ? meta["totalPages"] : page;

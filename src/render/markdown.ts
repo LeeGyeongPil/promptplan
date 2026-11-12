@@ -2,8 +2,8 @@
 // 요약 표는 바로 보이고, 줄 단위 diff 는 <details> 안에 접어 둔다.
 
 import type { Plan } from "../types.js";
-import { plural } from "../util.js";
-import { changeHeadline, summaryLine, targetLine, warningText } from "./text.js";
+import { countMsg, t, type Lang } from "../i18n.js";
+import { changeHeadline, errorText, summaryLine, targetLine, warningText } from "./text.js";
 
 export const MARKER = "<!-- promptplan -->";
 
@@ -32,25 +32,31 @@ function fenceFor(lines: string[]): string {
   return fence;
 }
 
-export function renderPlanMarkdown(plan: Plan): string {
-  const out: string[] = [MARKER, "### promptplan plan", "", `${cell(targetLine(plan))}`, ""];
+export interface MarkdownOptions {
+  /** 화면 언어(기본 en) */
+  lang?: Lang;
+}
+
+export function renderPlanMarkdown(plan: Plan, options: MarkdownOptions = {}): string {
+  const lang = options.lang ?? "en";
+  const out: string[] = [MARKER, t(lang, "md.title"), "", `${cell(targetLine(plan, lang))}`, ""];
 
   if (plan.errors.length > 0) {
-    out.push(`**Error: ${plural(plan.errors.length, "problem")} found. Nothing was sent to Langfuse.**`, "");
-    for (const error of plan.errors) out.push(`- ${code(error.file)}: ${error.message}`);
+    out.push(t(lang, "md.errors", { problems: countMsg("problem", plan.errors.length) }), "");
+    for (const error of plan.errors) out.push(`- ${code(error.file)}: ${errorText(error, lang)}`);
     return `${out.join("\n")}\n`;
   }
 
-  out.push(`**${summaryLine(plan)}**`, "");
-  out.push("| | Prompt | Change |", "|:-:|---|---|");
+  out.push(`**${summaryLine(plan, lang)}**`, "");
+  out.push(t(lang, "md.tableHeader"), "|:-:|---|---|");
   // 표 칸 안에서는 인라인 코드 속 | 도 \| 로 막아야 표가 깨지지 않는다(GFM 규칙).
   for (const change of plan.changes)
-    out.push(`| ${code(SYMBOL[change.action])} | ${cell(code(change.name))} | ${cell(changeHeadline(change))} |`);
+    out.push(`| ${code(SYMBOL[change.action])} | ${cell(code(change.name))} | ${cell(changeHeadline(change, lang))} |`);
   out.push("");
 
-  const warnings = plan.changes.flatMap((change) => change.warnings.map((warning) => warningText(change.name, warning)));
+  const warnings = plan.changes.flatMap((change) => change.warnings.map((warning) => warningText(change.name, warning, lang)));
   if (warnings.length > 0) {
-    out.push("**Warnings**", "");
+    out.push(t(lang, "md.warnings"), "");
     for (const warning of warnings) out.push(`- ${warning}`);
     out.push("");
   }
@@ -58,13 +64,13 @@ export function renderPlanMarkdown(plan: Plan): string {
   for (const change of plan.changes) {
     if (change.diff.length === 0) continue;
     const fence = fenceFor(change.diff);
-    out.push(`<details><summary><code>${html(change.name)}</code> — ${html(changeHeadline(change))}</summary>`, "");
+    out.push(`<details><summary><code>${html(change.name)}</code> — ${html(changeHeadline(change, lang))}</summary>`, "");
     out.push(`${fence}diff`, ...change.diff, fence, "", "</details>", "");
   }
 
-  if (plan.unmanaged.length > 0) out.push(`Not in your files (left alone): ${plan.unmanaged.map(code).join(", ")}`, "");
+  if (plan.unmanaged.length > 0) out.push(t(lang, "render.unmanaged", { list: plan.unmanaged.map(code).join(", ") }), "");
   const s = plan.summary;
-  if (s.create + s.newVersion + s.move === 0) out.push("No changes. Langfuse already matches your files.", "");
+  if (s.create + s.newVersion + s.move === 0) out.push(t(lang, "render.noChanges"), "");
   while (out.at(-1) === "") out.pop();
   return `${out.join("\n")}\n`;
 }
