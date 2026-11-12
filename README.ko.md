@@ -4,7 +4,7 @@
 
 프롬프트 파일 폴더와 Langfuse 를 비교해서 "무엇이 바뀌는지"를 미리 보여 주고(`plan`), 바뀐 것만 새 버전으로 올리거나 라벨만 옮기는(`apply`) CLI 입니다. 손으로 짠 deploy 스크립트가 같은 내용으로 버전을 계속 쌓는 문제를 없애 줍니다.
 
-![plan 결과 화면](docs/images/01-hero.png)
+![plan 결과 화면](docs/images/01-hero.ko.png)
 *`promptplan plan` 이 폴더와 (연습용 목) 서버의 차이를 `+ ~ > =` 기호와 경고로 보여 주는 화면*
 
 ## 이런 분께
@@ -74,7 +74,7 @@ Plan: 1 to create, 1 new version, 1 label move, 2 unchanged
 ### 30초 전체 흐름 (`npm run demo`)
 plan → apply → plan 을 연습용 목으로 차례로 보여 줍니다.
 
-![demo 전체 흐름](docs/images/02-demo.png)
+![demo 전체 흐름](docs/images/02-demo.ko.png)
 *apply 는 필요한 요청만(2 POST, 1 PATCH) 보내고, 다시 plan 하면 변경 없음. 맨 아래는 비교 없는 스크립트와의 버전 수 비교*
 
 **연습용 목(mock) 모드**: 데모는 Langfuse 프롬프트 API 를 흉내 낸 메모리 속 가짜 서버로 동작합니다. 실제 서버와 응답이 완전히 같다고 보장하지 않습니다(소스 읽기 기반으로 재현, 2026-11-10). 실제 Langfuse 는 공유 자원이라 느릴 수 있어 요청마다 120초 타임아웃을 둡니다.
@@ -96,8 +96,28 @@ plan → apply → plan 을 연습용 목으로 차례로 보여 줍니다.
 | `--mock-state <file>` | Langfuse 대신 이 JSON 으로 시작하는 연습용 목 사용(apply 는 결과를 파일에 다시 씀) | `--mock-state examples/remote-seed.json` |
 | `--env-file <file>` | 키를 파일에서 읽기 | `--env-file .env` |
 | `--no-color` | 색 끄기(`NO_COLOR` 도 인식) | |
+| `--lang <en\|ko>` | 화면 언어(영어·한국어) | `promptplan --lang ko plan --dir prompts` |
 
 종료 코드: 0 정상 · 2 변경 있음(`plan --detailed-exitcode` 일 때만) · 1 오류. 프롬프트 파일이 하나도 없는 폴더(빈 폴더·잘못된 `--dir`)도 오류(1)입니다.
+
+### 화면 언어 (영어·한국어)
+도움말, plan·apply 출력, PR 코멘트용 Markdown, 오류 메시지를 영어와 한국어로 볼 수 있습니다. 언어는 아래 순서로 정하며 먼저 맞는 것이 적용됩니다.
+
+1. `--lang en|ko`
+2. 환경 변수 `PROMPTPLAN_LANG` (`en` 또는 `ko`)
+3. `LC_ALL`, 그다음 `LC_MESSAGES`, 그다음 `LANG` — 값이 `ko` 로 시작하면(예: `ko_KR.UTF-8`) 한국어
+4. 그 밖에는 영어(빈 값, `C`, `POSIX`, 알 수 없는 값)
+
+```bash
+npx promptplan --lang ko plan --dir examples/prompts --mock-state examples/remote-seed.json
+PROMPTPLAN_LANG=ko npx promptplan demo
+```
+```
+promptplan plan · 대상: 연습용 목 (--mock-state) · 라벨: 파일 기준
+...
+계획: 생성 1개, 새 버전 1개, 라벨 이동 1개, 변경 없음 2개
+```
+바뀌는 것은 화면 문구뿐입니다. `--format json`, 종료 코드(0/1/2), 커밋 메시지 `[promptplan] ...`, 프롬프트 파일의 내용은 두 언어에서 같습니다. `--lang xx` 처럼 잘못된 값은 오류(종료 코드 1)입니다. 스크립트에서 text·Markdown 출력을 문자열로 비교한다면 한국어 `LANG` 에 영향받지 않도록 `--lang en`(또는 `PROMPTPLAN_LANG=en`)으로 고정하세요. 이 문서의 영어 예시 출력은 영어 화면 기준입니다.
 
 ### 프롬프트 파일 형식
 - 텍스트 프롬프트는 `.md`, 채팅 프롬프트는 `.yaml`/`.yml`. 이름은 `--dir` 기준 경로에서 확장자를 뺀 것(`support/greeting.md` → `support/greeting`)이고, 프론트매터의 `name` 으로 바꿀 수 있습니다.
@@ -137,14 +157,14 @@ npx promptplan plan --dir examples/prompts --mock-state examples/remote-seed.jso
 ```
 exit=2
 ```
-![종료 코드 2](docs/images/03-exitcode.png)
+![종료 코드 2](docs/images/03-exitcode.ko.png)
 *변경이 있어 종료 코드 2*
 
 ### 시나리오 2: 잘못된 파일은 보내기 전에 막기
 ```bash
 npx promptplan plan --dir examples/broken --mock-state examples/remote-seed.json
 ```
-![검증 오류 화면](docs/images/04-broken.png)
+![검증 오류 화면](docs/images/04-broken.ko.png)
 *예약된 라벨 `latest`, 잘못된 라벨, 예약된 이름, 타입 변경(text→chat)을 보내기 전에 오류 4건으로 막음. 종료 코드 1이며 서버에는 아무것도 가지 않음*
 
 ### 시나리오 3: staging 에 올리고 production 으로 승격
@@ -156,7 +176,7 @@ rm mock-state.json
 ```
 첫 apply 는 내용이 바뀐 것만 새 버전으로 올립니다. 두 번째(승격)는 `Applied: 0 created versions, 3 label moves` — 새 버전 없이 production 라벨만 옮깁니다.
 
-![승격 결과](docs/images/05-promote.png)
+![승격 결과](docs/images/05-promote.ko.png)
 *승격 단계의 결과: 라벨 이동 3건, 새 버전 0건*
 
 `pull` 로 서버의 production 프롬프트를 파일로 내려받으면 곧바로 `plan` 이 "No changes" 가 됩니다(왕복 확인).
@@ -176,6 +196,8 @@ npx promptplan plan --dir prompts --env-file .env
 | `LANGFUSE_BASE_URL` | 기본 `https://cloud.langfuse.com`(EU). US 는 `https://us.cloud.langfuse.com`, 셀프호스트는 내 주소 |
 
 이미 설정된 환경 변수가 `--env-file` 값보다 우선합니다. 키도 `--mock-state` 도 없으면 어떻게 하라는 안내와 함께 종료 코드 1 로 끝납니다.
+
+`PROMPTPLAN_LANG=en|ko` 는 모든 실행의 화면 언어를 정합니다([화면 언어](#화면-언어-영어한국어) 참고). `--lang` 이 우선합니다.
 
 **목 모드와 실제 모드의 차이**: 목은 같은 규칙(POST 는 언제나 새 버전, `latest` 자동 이동, 라벨은 한 버전에만 등)을 흉내 내는 로컬 서버라 키가 필요 없고 빠릅니다. 실제 서버와의 차이는 사용자 환경에서 `plan --env-file .env` 로 확인하세요.
 
@@ -229,9 +251,9 @@ flowchart LR
 
 ## 개발·기여
 ```bash
-npm test    # 빌드 후 31개 테스트, 네트워크 없음
+npm test    # 빌드 후 42개 테스트, 네트워크 없음
 ```
-버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
+문구는 `src/i18n.ts` 한 표에 모여 있습니다(영어·한국어 항목의 키가 같아야 하며 테스트가 확인합니다). 버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
 
 ## 라이선스
 MIT. 연습용 목 서버는 외부 모델·데이터를 쓰지 않습니다. 런타임 의존성은 `yaml` 하나입니다.

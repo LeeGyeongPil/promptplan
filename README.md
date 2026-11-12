@@ -96,8 +96,28 @@ It shows plan → apply → plan in sequence against the practice mock.
 | `--mock-state <file>` | Use a practice mock that starts from this JSON instead of Langfuse (apply writes the result back to the file) | `--mock-state examples/remote-seed.json` |
 | `--env-file <file>` | Read keys from a file | `--env-file .env` |
 | `--no-color` | Turn off color (`NO_COLOR` is also recognized) | |
+| `--lang <en\|ko>` | Screen language (English or Korean) | `promptplan --lang ko plan --dir prompts` |
 
 Exit codes: 0 normal · 2 changes exist (only with `plan --detailed-exitcode`) · 1 error. A folder with no prompt files at all (an empty folder, or a wrong `--dir`) is also an error (1).
+
+### Screen language (English / Korean)
+Help, plan and apply output, the Markdown for PR comments, and error messages are available in English and Korean. The language is chosen in this order (first match wins):
+
+1. `--lang en|ko`
+2. the `PROMPTPLAN_LANG` environment variable (`en` or `ko`)
+3. `LC_ALL`, then `LC_MESSAGES`, then `LANG` — a value starting with `ko` (for example `ko_KR.UTF-8`) means Korean
+4. otherwise English (an empty value, `C`, `POSIX`, or anything unknown)
+
+```bash
+npx promptplan --lang ko plan --dir examples/prompts --mock-state examples/remote-seed.json
+PROMPTPLAN_LANG=ko npx promptplan demo
+```
+```
+promptplan plan · 대상: 연습용 목 (--mock-state) · 라벨: 파일 기준
+...
+계획: 생성 1개, 새 버전 1개, 라벨 이동 1개, 변경 없음 2개
+```
+Only the screen text changes. `--format json`, exit codes (0/1/2), the commit message `[promptplan] ...`, and the contents of your prompt files are the same in both languages. An invalid value such as `--lang xx` is an error (exit code 1). If you compare the text or Markdown output in a script, pin it with `--lang en` (or `PROMPTPLAN_LANG=en`) so a Korean `LANG` does not change it. The outputs shown in this README are the English ones.
 
 ### Prompt file format
 - Text prompts are `.md`, chat prompts are `.yaml`/`.yml`. The name is the path relative to `--dir` without the extension (`support/greeting.md` → `support/greeting`), and you can override it with `name` in the front matter.
@@ -177,6 +197,8 @@ npx promptplan plan --dir prompts --env-file .env
 
 Environment variables that are already set take precedence over `--env-file` values. If there are neither keys nor `--mock-state`, it ends with exit code 1 and a message on what to do.
 
+`PROMPTPLAN_LANG=en|ko` sets the screen language for every run (see [Screen language](#screen-language-english--korean)); `--lang` overrides it.
+
 **Differences between mock mode and real mode**: The mock is a local server that imitates the same rules (a POST always creates a new version, `latest` moves automatically, a label sits on only one version), so it needs no key and is fast. To see differences from the real server, run `plan --env-file .env` in your own environment.
 
 ### Hooking it into CI
@@ -229,9 +251,9 @@ Reference: the official Langfuse docs https://langfuse.com/docs/prompt-managemen
 
 ## Development and contributing
 ```bash
-npm test    # 31 tests after the build, no network
+npm test    # 42 tests after the build, no network
 ```
-Please leave bugs and suggestions as issues. The change log is [CHANGELOG.md](CHANGELOG.md).
+Messages live in one table, `src/i18n.ts` (the English and Korean entries must have the same keys; a test checks it). Please leave bugs and suggestions as issues. The change log is [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 MIT. The practice mock server uses no external model or data. The only runtime dependency is `yaml`.
