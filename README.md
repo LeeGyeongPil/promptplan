@@ -94,7 +94,7 @@ It shows plan → apply → plan in sequence against the practice mock.
 | `mock` | Runs a practice mock server until Ctrl+C | `promptplan mock --port 3999 --seed examples/remote-seed.json` |
 | `demo` | The plan → apply → plan demo | `promptplan demo` |
 | `--mock-state <file>` | Use a practice mock that starts from this JSON instead of Langfuse (apply writes the result back to the file) | `--mock-state examples/remote-seed.json` |
-| `--env-file <file>` | Read keys from a file | `--env-file .env` |
+| `--env <file>` | Read keys from a file (`--env-file` also works, but Node handles a missing file first and exits with 9) | `--env .env` |
 | `--no-color` | Turn off color (`NO_COLOR` is also recognized) | |
 | `--lang <en\|ko>` | Screen language (English or Korean) | `promptplan --lang ko plan --dir prompts` |
 
@@ -186,7 +186,7 @@ To connect to a real Langfuse, copy `.env.example` to `.env` and fill it in (do 
 
 ```bash
 cp .env.example .env
-npx promptplan plan --dir prompts --env-file .env
+npx promptplan plan --dir prompts --env .env
 ```
 
 | Variable | Meaning |
@@ -195,11 +195,11 @@ npx promptplan plan --dir prompts --env-file .env
 | `LANGFUSE_SECRET_KEY` | The (secret) API key |
 | `LANGFUSE_BASE_URL` | Default `https://cloud.langfuse.com` (EU). For US, `https://us.cloud.langfuse.com`; for self-hosting, your own address |
 
-Environment variables that are already set take precedence over `--env-file` values. If there are neither keys nor `--mock-state`, it ends with exit code 1 and a message on what to do.
+Environment variables that are already set take precedence over `--env` values. If there are neither keys nor `--mock-state`, it ends with exit code 1 and a message on what to do.
 
 `PROMPTPLAN_LANG=en|ko` sets the screen language for every run (see [Screen language](#screen-language-english--korean)); `--lang` overrides it.
 
-**Differences between mock mode and real mode**: The mock is a local server that imitates the same rules (a POST always creates a new version, `latest` moves automatically, a label sits on only one version), so it needs no key and is fast. To see differences from the real server, run `plan --env-file .env` in your own environment.
+**Differences between mock mode and real mode**: The mock is a local server that imitates the same rules (a POST always creates a new version, `latest` moves automatically, a label sits on only one version), so it needs no key and is fast. To see differences from the real server, run `plan --env .env` in your own environment.
 
 ### Hooking it into CI
 Copy `examples/github-actions/promptplan.yml` into your repository's `.github/workflows/`.
@@ -240,7 +240,8 @@ Reference: the official Langfuse docs https://langfuse.com/docs/prompt-managemen
 ## Troubleshooting
 | Symptom | Cause | Fix |
 |---|---|---|
-| `No Langfuse keys found` | There are neither keys nor `--mock-state` | Give keys with `--env-file .env`, or practice with `--mock-state examples/remote-seed.json` |
+| `No Langfuse keys found` | There are neither keys nor `--mock-state` | Give keys with `--env .env`, or practice with `--mock-state examples/remote-seed.json` |
+| `node: <file>: not found` and exit code 9 | `--env-file` path is wrong; Node checks it before promptplan starts | Use `--env <file>`, or fix the path |
 | `apply needs --yes when not running in an interactive terminal` | A confirmation question cannot be asked where there is no terminal, such as CI | `apply --yes` |
 | `label "latest" is reserved` | Langfuse attaches `latest` to the newest version automatically | Remove `latest` from the file's `labels` |
 | `type change text → chat is not allowed` | Langfuse keeps the type chosen first | Use a new prompt name |
@@ -251,7 +252,7 @@ Reference: the official Langfuse docs https://langfuse.com/docs/prompt-managemen
 
 ## Development and contributing
 ```bash
-npm test    # 42 tests after the build, no network
+npm test    # 44 tests after the build, no network
 ```
 Messages live in one table, `src/i18n.ts` (the English and Korean entries must have the same keys; a test checks it). Please leave bugs and suggestions as issues. The change log is [CHANGELOG.md](CHANGELOG.md).
 

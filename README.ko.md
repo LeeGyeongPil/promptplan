@@ -94,7 +94,7 @@ plan → apply → plan 을 연습용 목으로 차례로 보여 줍니다.
 | `mock` | 연습용 목 서버를 Ctrl+C 까지 띄움 | `promptplan mock --port 3999 --seed examples/remote-seed.json` |
 | `demo` | plan → apply → plan 데모 | `promptplan demo` |
 | `--mock-state <file>` | Langfuse 대신 이 JSON 으로 시작하는 연습용 목 사용(apply 는 결과를 파일에 다시 씀) | `--mock-state examples/remote-seed.json` |
-| `--env-file <file>` | 키를 파일에서 읽기 | `--env-file .env` |
+| `--env <file>` | 키를 파일에서 읽기(`--env-file` 도 되지만 파일이 없으면 Node 가 먼저 종료 코드 9 로 끝냄) | `--env .env` |
 | `--no-color` | 색 끄기(`NO_COLOR` 도 인식) | |
 | `--lang <en\|ko>` | 화면 언어(영어·한국어) | `promptplan --lang ko plan --dir prompts` |
 
@@ -186,7 +186,7 @@ rm mock-state.json
 
 ```bash
 cp .env.example .env
-npx promptplan plan --dir prompts --env-file .env
+npx promptplan plan --dir prompts --env .env
 ```
 
 | 변수 | 뜻 |
@@ -195,11 +195,11 @@ npx promptplan plan --dir prompts --env-file .env
 | `LANGFUSE_SECRET_KEY` | API 키(비밀) |
 | `LANGFUSE_BASE_URL` | 기본 `https://cloud.langfuse.com`(EU). US 는 `https://us.cloud.langfuse.com`, 셀프호스트는 내 주소 |
 
-이미 설정된 환경 변수가 `--env-file` 값보다 우선합니다. 키도 `--mock-state` 도 없으면 어떻게 하라는 안내와 함께 종료 코드 1 로 끝납니다.
+이미 설정된 환경 변수가 `--env` 값보다 우선합니다. 키도 `--mock-state` 도 없으면 어떻게 하라는 안내와 함께 종료 코드 1 로 끝납니다.
 
 `PROMPTPLAN_LANG=en|ko` 는 모든 실행의 화면 언어를 정합니다([화면 언어](#화면-언어-영어한국어) 참고). `--lang` 이 우선합니다.
 
-**목 모드와 실제 모드의 차이**: 목은 같은 규칙(POST 는 언제나 새 버전, `latest` 자동 이동, 라벨은 한 버전에만 등)을 흉내 내는 로컬 서버라 키가 필요 없고 빠릅니다. 실제 서버와의 차이는 사용자 환경에서 `plan --env-file .env` 로 확인하세요.
+**목 모드와 실제 모드의 차이**: 목은 같은 규칙(POST 는 언제나 새 버전, `latest` 자동 이동, 라벨은 한 버전에만 등)을 흉내 내는 로컬 서버라 키가 필요 없고 빠릅니다. 실제 서버와의 차이는 사용자 환경에서 `plan --env .env` 로 확인하세요.
 
 ### CI 에 붙이기
 `examples/github-actions/promptplan.yml` 을 내 저장소의 `.github/workflows/` 로 복사합니다.
@@ -240,7 +240,8 @@ flowchart LR
 ## 자주 겪는 문제
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| `No Langfuse keys found` | 키도 `--mock-state` 도 없음 | `--env-file .env` 로 키를 주거나 `--mock-state examples/remote-seed.json` 으로 연습 |
+| `No Langfuse keys found` | 키도 `--mock-state` 도 없음 | `--env .env` 로 키를 주거나 `--mock-state examples/remote-seed.json` 으로 연습 |
+| `node: <file>: not found` 와 종료 코드 9 | `--env-file` 경로가 틀림, promptplan 보다 Node 가 먼저 검사함 | `--env <file>` 을 쓰거나 경로를 고치세요 |
 | `apply needs --yes when not running in an interactive terminal` | CI 등 터미널이 아닌 곳에서 확인 질문을 할 수 없음 | `apply --yes` |
 | `label "latest" is reserved` | `latest` 는 Langfuse 가 최신 버전에 자동으로 붙임 | 파일의 `labels` 에서 `latest` 제거 |
 | `type change text → chat is not allowed` | Langfuse 는 처음 정한 타입을 유지함 | 새 프롬프트 이름을 사용 |
@@ -251,7 +252,7 @@ flowchart LR
 
 ## 개발·기여
 ```bash
-npm test    # 빌드 후 42개 테스트, 네트워크 없음
+npm test    # 빌드 후 44개 테스트, 네트워크 없음
 ```
 문구는 `src/i18n.ts` 한 표에 모여 있습니다(영어·한국어 항목의 키가 같아야 하며 테스트가 확인합니다). 버그·제안은 이슈로 남겨 주세요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md).
 
