@@ -13,10 +13,10 @@ const en = {
 
 Usage
   promptplan plan  [--dir prompts] [--label <l>]... [--format text|markdown|json]
-                   [--detailed-exitcode] [--mock-state <file>] [--env-file <file>] [--no-color]
+                   [--detailed-exitcode] [--mock-state <file>] [--env <file>] [--no-color]
   promptplan apply [--dir prompts] [--label <l>]... [--yes] [--message <m>]
-                   [--mock-state <file>] [--env-file <file>] [--no-color]
-  promptplan pull  [--dir prompts] [--label production] [--force] [--mock-state <file>] [--env-file <file>]
+                   [--mock-state <file>] [--env <file>] [--no-color]
+  promptplan pull  [--dir prompts] [--label production] [--force] [--mock-state <file>] [--env <file>]
   promptplan mock  [--port 3999] [--seed <file>]     run the practice mock until Ctrl+C
   promptplan demo                                    plan → apply → plan against the practice mock
 
@@ -30,7 +30,8 @@ Options
   --force                pull overwrites existing files
   --mock-state <file>    use the practice mock loaded from this JSON file instead of Langfuse
                          (apply writes the new mock state back to the file)
-  --env-file <file>      read LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL from a file
+  --env <file>           read LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL from a file
+  --env-file <file>      same as --env; if the file is missing, Node itself stops first (exit 9)
   --no-color             plain output (also honours NO_COLOR)
   --lang <en|ko>         screen language. Default: PROMPTPLAN_LANG, then LC_ALL / LC_MESSAGES / LANG, else English
 
@@ -78,10 +79,10 @@ Exit codes: 0 ok · 2 changes (plan --detailed-exitcode) · 1 error
   // ---- config ----
   "config.missingKeys": `No Langfuse keys found.
   Real Langfuse: set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY (and LANGFUSE_BASE_URL for US or self-hosted),
-                 for example in a .env file passed with --env-file .env (see .env.example).
+                 for example in a .env file passed with --env .env (see .env.example).
   Practice:      add --mock-state <file> to run against the built-in practice mock, e.g.
                  --mock-state examples/remote-seed.json`,
-  "config.cannotReadEnvFile": "cannot read --env-file ({code})",
+  "config.cannotReadEnvFile": "cannot read {flag} ({code})",
   "config.badBaseUrl": "LANGFUSE_BASE_URL is not a valid URL",
   "target.mock": "practice mock (--mock-state)",
   "target.demo": "practice mock (demo)",
@@ -201,10 +202,10 @@ const ko: Record<MsgKey, string> = {
 
 사용법
   promptplan plan  [--dir prompts] [--label <l>]... [--format text|markdown|json]
-                   [--detailed-exitcode] [--mock-state <file>] [--env-file <file>] [--no-color]
+                   [--detailed-exitcode] [--mock-state <file>] [--env <file>] [--no-color]
   promptplan apply [--dir prompts] [--label <l>]... [--yes] [--message <m>]
-                   [--mock-state <file>] [--env-file <file>] [--no-color]
-  promptplan pull  [--dir prompts] [--label production] [--force] [--mock-state <file>] [--env-file <file>]
+                   [--mock-state <file>] [--env <file>] [--no-color]
+  promptplan pull  [--dir prompts] [--label production] [--force] [--mock-state <file>] [--env <file>]
   promptplan mock  [--port 3999] [--seed <file>]     Ctrl+C 를 누를 때까지 연습용 목 서버 실행
   promptplan demo                                    연습용 목에서 plan → apply → plan 시연
 
@@ -218,7 +219,8 @@ const ko: Record<MsgKey, string> = {
   --force                pull 이 기존 파일을 덮어씀
   --mock-state <file>    Langfuse 대신 이 JSON 파일에서 읽은 연습용 목 사용
                          (apply 하면 새 목 상태를 파일에 되씀)
-  --env-file <file>      LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL 을 파일에서 읽음
+  --env <file>           LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL 을 파일에서 읽음
+  --env-file <file>      --env 와 같음. 파일이 없으면 Node 가 먼저 종료함(종료 코드 9)
   --no-color             색 없는 출력(NO_COLOR 도 따름)
   --lang <en|ko>         화면 언어. 기본값: PROMPTPLAN_LANG, 그다음 LC_ALL / LC_MESSAGES / LANG, 그 외에는 영어
 
@@ -265,10 +267,10 @@ const ko: Record<MsgKey, string> = {
 
   "config.missingKeys": `Langfuse 키를 찾을 수 없습니다.
   실제 Langfuse: LANGFUSE_PUBLIC_KEY 와 LANGFUSE_SECRET_KEY 를 설정하세요(US·셀프호스트는 LANGFUSE_BASE_URL 도).
-                 예를 들어 .env 파일을 만들고 --env-file .env 로 넘기면 됩니다(.env.example 참고).
+                 예를 들어 .env 파일을 만들고 --env .env 로 넘기면 됩니다(.env.example 참고).
   연습용:        --mock-state <file> 을 붙이면 내장 연습용 목을 대상으로 실행합니다. 예:
                  --mock-state examples/remote-seed.json`,
-  "config.cannotReadEnvFile": "--env-file 을 읽을 수 없습니다({code})",
+  "config.cannotReadEnvFile": "환경 파일을 읽을 수 없습니다 ({flag}, {code})",
   "config.badBaseUrl": "LANGFUSE_BASE_URL 이 올바른 URL 이 아닙니다",
   "target.mock": "연습용 목 (--mock-state)",
   "target.demo": "연습용 목 (demo)",

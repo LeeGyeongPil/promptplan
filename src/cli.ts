@@ -109,6 +109,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         force: { type: "boolean" },
         "mock-state": { type: "string" },
         "env-file": { type: "string" },
+        env: { type: "string" },
         "no-color": { type: "boolean" },
         lang: { type: "string" },
         port: { type: "string" },
@@ -158,7 +159,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     if (command !== "plan" && values.format !== undefined) throw new PromptplanError("cli.formatOnlyPlan");
 
     let env = io.env;
-    if (values["env-file"]) env = await loadEnvFile(values["env-file"], env);
+    // --env 는 Node 의 --env-file 과 겹치지 않는 이름. 둘 다 주면 --env 가 이긴다.
+    if (values.env) env = await loadEnvFile(values.env, env, "--env");
+    else if (values["env-file"]) env = await loadEnvFile(values["env-file"], env);
     const connection = resolveConnection({ mockState: values["mock-state"], env });
     const dir = values.dir ?? "prompts";
 

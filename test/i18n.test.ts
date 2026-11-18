@@ -187,7 +187,7 @@ test("user-facing error paths are localized: config, mock state, folders, valida
 
   await assert.rejects(loadEnvFile("/nonexistent/.env", {}), /cannot read --env-file \(ENOENT\)/);
   const envFile = await run(["plan", "--lang", "ko", "--dir", PROMPTS_DIR, "--env-file", "/nonexistent/.env"]);
-  assert.match(envFile.err, /--env-file 을 읽을 수 없습니다\(ENOENT\)/);
+  assert.match(envFile.err, /환경 파일을 읽을 수 없습니다 \(--env-file, ENOENT\)/);
 
   const noDir = await run(["plan", "--lang", "ko", "--dir", "/nonexistent/prompts", "--mock-state", SEED_FILE]);
   assert.equal(noDir.code, 1);

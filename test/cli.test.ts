@@ -226,3 +226,28 @@ test("missing --dir and --mock-state errors show the path that was passed", asyn
     assert.equal(ok.code, 0, ok.stdout + ok.stderr);
   });
 });
+
+test("--env with a missing file exits 1 with promptplan's own message (not Node's exit 9)", async () => {
+  const en = await cli(["plan", "--lang", "en", "--dir", "examples/prompts", "--env", "/nonexistent/.env"]);
+  assert.equal(en.code, 1, en.stderr);
+  assert.match(en.stderr, /promptplan: error: cannot read --env \(ENOENT\)/);
+  const ko = await cli(["plan", "--lang", "ko", "--dir", "examples/prompts", "--env", "/nonexistent/.env"]);
+  assert.equal(ko.code, 1, ko.stderr);
+  assert.match(ko.stderr, /환경 파일을 읽을 수 없습니다 \(--env, ENOENT\)/);
+});
+
+test("--env and an existing --env-file are both read (--env wins when both are given)", async () => {
+  await withTempDir(async (dir) => {
+    const good = path.join(dir, "good.env");
+    await writeFile(good, "LANGFUSE_PUBLIC_KEY=pk\nLANGFUSE_SECRET_KEY=sk\nLANGFUSE_BASE_URL=http://127.0.0.1:1\n");
+    // 키가 읽히면 "No Langfuse keys" 가 아니라 연결 오류가 난다.
+    for (const flag of ["--env", "--env-file"]) {
+      const r = await cli(["plan", "--lang", "en", "--dir", "examples/prompts", flag, good]);
+      assert.doesNotMatch(r.stderr, /No Langfuse keys found/, flag);
+    }
+    // 둘 다 주면 --env 의 파일을 읽는다: 없는 --env 파일이 오류를 낸다.
+    const both = await cli(["plan", "--lang", "en", "--dir", "examples/prompts", "--env", "/nonexistent/.env", "--env-file", good]);
+    assert.equal(both.code, 1);
+    assert.match(both.stderr, /cannot read --env \(ENOENT\)/);
+  });
+});

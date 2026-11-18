@@ -18,12 +18,12 @@ export const MOCK_TARGET = "practice mock (--mock-state)";
 export const MISSING_KEYS_MESSAGE = fmt("en", msg("config.missingKeys"));
 
 /** --env-file 를 읽어 env 와 합친다. 이미 있는 환경 변수가 이긴다(CI 비밀값이 파일보다 우선). */
-export async function loadEnvFile(file: string, env: Env): Promise<Env> {
+export async function loadEnvFile(file: string, env: Env, flag = "--env-file"): Promise<Env> {
   let text: string;
   try {
     text = await readFile(file, "utf8");
   } catch (error) {
-    throw new PromptplanError("config.cannotReadEnvFile", { code: (error as NodeJS.ErrnoException).code ?? String(error) });
+    throw new PromptplanError("config.cannotReadEnvFile", { flag, code: (error as NodeJS.ErrnoException).code ?? String(error) });
   }
   return { ...parseEnv(text), ...env };
 }
