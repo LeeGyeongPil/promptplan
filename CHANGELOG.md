@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2026-11-18
+
+### Added
+
+- `--env <file>` reads keys from a file like `--env-file`, but its name does not clash with the Node runtime flag. Node handles `--env-file` before promptplan starts, so a wrong path ended with `node: <file>: not found` and exit code 9 instead of promptplan's message and exit code 1. If both are given, `--env` wins. `--env-file` keeps working.
+
 ## 0.2.0 - 2026-11-13
 
 ### Added
